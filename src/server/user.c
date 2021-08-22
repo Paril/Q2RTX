@@ -108,7 +108,11 @@ static void write_plain_configstrings(void)
         }
 
         MSG_WriteByte(svc_configstring);
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
     }
@@ -179,11 +183,19 @@ static void write_compressed_gamestate(void)
             length = MAX_QPATH;
         }
 
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
     }
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(MAX_CONFIGSTRINGS);   // end of configstrings
+#else
+    MSG_WriteLong(MAX_CONFIGSTRINGS);   // end of configstrings
+#endif
 
     // write baselines
     for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
@@ -1110,7 +1122,7 @@ static void SV_OldClientExecuteMove(void)
 
     moveIssued = qtrue;
 
-    if (sv_client->protocol == PROTOCOL_VERSION_DEFAULT) {
+    if (sv_client->protocol == PROTOCOL_VERSION_Q2) {
         MSG_ReadByte();    // skip over checksum
     }
 

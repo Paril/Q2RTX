@@ -304,7 +304,11 @@ static void MVD_UnicastString(mvd_t *mvd, qboolean reliable, mvd_player_t *playe
     data = msg_read.data + msg_read.readcount - 1;
     readcount = msg_read.readcount - 1;
 
+#ifndef EXTENDED_LIMITS
     index = MSG_ReadShort();
+#else
+    index = MSG_ReadLong();
+#endif
     length = MSG_ReadString(string, sizeof(string));
 
     if (index < 0 || index >= MAX_CONFIGSTRINGS) {
@@ -512,8 +516,13 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
         offset = MSG_ReadByte();
 
     // entity relative
+#ifndef EXTENDED_LIMITS
     sendchan = MSG_ReadShort();
     entnum = sendchan >> 3;
+#else
+    entnum = MSG_ReadShort();
+    sendchan = (flags & SND_CHANNEL_BITS) >> SND_CHANNEL_SHIFT;
+#endif
     if (entnum < 0 || entnum >= MAX_EDICTS) {
         MVD_Destroyf(mvd, "%s: bad entnum: %d", __func__, entnum);
     }
@@ -568,7 +577,11 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
         if (extrabits & 2) {
             MSG_WriteByte(svc_sound);
             MSG_WriteByte(flags | SND_POS);
+#ifndef EXTENDED_LIMITS
             MSG_WriteByte(index);
+#else
+            MSG_WriteShort(index);
+#endif
 
             if (flags & SND_VOLUME)
                 MSG_WriteByte(volume);
@@ -591,7 +604,7 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
         }
 
         // default client doesn't know that bmodels have weird origins
-        if (entity->solid == SOLID_BSP && cl->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (entity->solid == SOLID_BSP && cl->protocol == PROTOCOL_VERSION_Q2) {
             flags |= SND_POS;
         }
 
@@ -622,7 +635,11 @@ static void MVD_ParseConfigstring(mvd_t *mvd)
     size_t len, maxlen;
     char *s;
 
+#ifndef EXTENDED_LIMITS
     index = MSG_ReadShort();
+#else
+    index = MSG_ReadLong();
+#endif
     if (index < 0 || index >= MAX_CONFIGSTRINGS) {
         MVD_Destroyf(mvd, "%s: bad index: %d", __func__, index);
     }
@@ -973,7 +990,11 @@ static void MVD_ParseServerData(mvd_t *mvd, int extrabits)
 
     // parse configstrings
     while (1) {
+#ifndef EXTENDED_LIMITS
         index = MSG_ReadShort();
+#else
+        index = MSG_ReadLong();
+#endif
         if (index == MAX_CONFIGSTRINGS) {
             break;
         }

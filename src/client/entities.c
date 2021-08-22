@@ -267,7 +267,7 @@ static void set_active_state(void)
         VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin);
         VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity);
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
-            cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+            cls.serverProtocol > PROTOCOL_VERSION_Q2) {
             // enhanced servers don't send viewangles
             CL_PredictAngles();
         } else {
@@ -647,7 +647,7 @@ static void CL_AddPacketEntities(void)
             ent.model = 0;
         } else {
             // set skin
-            if (s1->modelindex == 255) {
+            if (s1->modelindex == MAX_MODELS - 1) {
                 // use custom player skin
                 ent.skinnum = 0;
                 ci = &cl.clientinfo[s1->skinnum & 0xff];
@@ -706,7 +706,7 @@ static void CL_AddPacketEntities(void)
                        cl.lerpfrac, ent.angles);
 
             // mimic original ref_gl "leaning" bug (uuugly!)
-            if (s1->modelindex == 255 && cl_rollhack->integer) {
+            if (s1->modelindex == MAX_MODELS - 1 && cl_rollhack->integer) {
                 ent.angles[ROLL] = -ent.angles[ROLL];
             }
         }
@@ -814,7 +814,7 @@ static void CL_AddPacketEntities(void)
 
         // duplicate for linked models
         if (s1->modelindex2) {
-            if (s1->modelindex2 == 255) {
+            if (s1->modelindex2 == MAX_MODELS - 1) {
                 // custom weapon
                 ci = &cl.clientinfo[s1->skinnum & 0xff];
                 i = (s1->skinnum >> 8); // 0 is default weapon model
@@ -1295,7 +1295,7 @@ void CL_CalcViewValues(void)
     } else if (ps->pmove.pm_type < PM_DEAD) {
         // use predicted values
         VectorCopy(cl.predicted_angles, cl.refdef.viewangles);
-    } else if (ops->pmove.pm_type < PM_DEAD && cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+    } else if (ops->pmove.pm_type < PM_DEAD && cls.serverProtocol > PROTOCOL_VERSION_Q2) {
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
         LerpAngles(cl.predicted_angles, ps->viewangles, lerp, cl.refdef.viewangles);

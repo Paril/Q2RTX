@@ -25,7 +25,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // game.h -- game dll information visible to server
 //
 
+#ifndef EXTENDED_LIMITS
 #define GAME_API_VERSION    3
+#else
+#define GAME_API_VERSION    666
+#endif
 
 // edict->svflags
 

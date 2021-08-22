@@ -176,7 +176,7 @@ void ChangeWeapon(edict_t *ent)
     ent->client->machinegun_shots = 0;
 
     // set visible model
-    if (ent->s.modelindex == 255) {
+    if (ent->s.modelindex == MAX_MODELS - 1) {
         if (ent->client->pers.weapon)
             i = ((ent->client->pers.weapon->weapmodel & 0xff) << 8);
         else
@@ -353,7 +353,7 @@ void Weapon_Generic(edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, 
 {
     int     n;
 
-    if (ent->deadflag || ent->s.modelindex != 255) { // VWep animations screw up corpses
+    if (ent->deadflag || ent->s.modelindex != MAX_MODELS - 1) { // VWep animations screw up corpses
         return;
     }
 
@@ -509,7 +509,7 @@ void weapon_grenade_fire(edict_t *ent, qboolean held)
 
     ent->client->grenade_time = level.time + 1.0;
 
-    if (ent->deadflag || ent->s.modelindex != 255) { // VWep animations screw up corpses
+    if (ent->deadflag || ent->s.modelindex != MAX_MODELS - 1) { // VWep animations screw up corpses
         return;
     }
 

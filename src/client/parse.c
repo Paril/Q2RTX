@@ -200,7 +200,7 @@ static void CL_ParseFrame(int extrabits)
     cl.frameflags = 0;
 
     extraflags = 0;
-    if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol > PROTOCOL_VERSION_Q2) {
         bits = MSG_ReadLong();
 
         currentframe = bits & FRAMENUM_MASK;
@@ -300,7 +300,7 @@ static void CL_ParseFrame(int extrabits)
         frame.areabytes = 0;
     }
 
-    if (cls.serverProtocol <= PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2) {
         if (MSG_ReadByte() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
         }
@@ -310,7 +310,7 @@ static void CL_ParseFrame(int extrabits)
 
     // parse playerstate
     bits = MSG_ReadShort();
-    if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol > PROTOCOL_VERSION_Q2) {
         MSG_ParseDeltaPlayerstate_Enhanced(from, &frame.ps, bits, extraflags);
 #ifdef _DEBUG
         if (cl_shownet->integer > 2 && (bits || extraflags)) {
@@ -340,7 +340,7 @@ static void CL_ParseFrame(int extrabits)
     }
 
     // parse packetentities
-    if (cls.serverProtocol <= PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2) {
         if (MSG_ReadByte() != svc_packetentities) {
             Com_Error(ERR_DROP, "%s: not packetentities", __func__);
         }
@@ -460,7 +460,11 @@ static void CL_ParseGamestate(void)
     int        index, bits;
 
     while (msg_read.readcount < msg_read.cursize) {
+#ifndef EXTENDED_LIMITS
         index = MSG_ReadShort();
+#else
+        index = MSG_ReadLong();
+#endif
         if (index == MAX_CONFIGSTRINGS) {
             break;
         }
@@ -807,7 +811,11 @@ static void CL_ParseStartSoundPacket(void)
     if ((flags & (SND_ENT | SND_POS)) == 0)
         Com_Error(ERR_DROP, "%s: neither SND_ENT nor SND_POS set", __func__);
 
+#ifndef EXTENDED_LIMITS
     snd.index = MSG_ReadByte();
+#else
+    snd.index = MSG_ReadShort();
+#endif
     if (snd.index == -1)
         Com_Error(ERR_DROP, "%s: read past end of message", __func__);
 
@@ -828,8 +836,13 @@ static void CL_ParseStartSoundPacket(void)
 
     if (flags & SND_ENT) {
         // entity relative
+#ifndef EXTENDED_LIMITS
         channel = MSG_ReadShort();
         entity = channel >> 3;
+#else
+        entity = MSG_ReadShort();
+        channel = (flags & SND_CHANNEL_BITS) >> SND_CHANNEL_SHIFT;
+#endif
         if (entity < 0 || entity >= MAX_EDICTS)
             Com_Error(ERR_DROP, "%s: bad entity: %d", __func__, entity);
         snd.entity = entity;
@@ -1238,7 +1251,11 @@ badbyte:
             continue;
 
         case svc_configstring:
+#ifndef EXTENDED_LIMITS
             index = MSG_ReadShort();
+#else
+            index = MSG_ReadLong();
+#endif
             CL_ParseConfigstring(index);
             break;
 
@@ -1399,7 +1416,11 @@ void CL_SeekDemoMessage(void)
             break;
 
         case svc_configstring:
+#ifndef EXTENDED_LIMITS
             index = MSG_ReadShort();
+#else
+            index = MSG_ReadLong();
+#endif
             CL_ParseConfigstring(index);
             break;
 

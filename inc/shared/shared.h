@@ -72,11 +72,21 @@ typedef int qerror_t;
 // per-level limits
 //
 #define MAX_CLIENTS         256     // absolute limit
+#ifndef EXTENDED_LIMITS
 #define MAX_EDICTS          1024    // must change protocol to increase more
+#else
+#define MAX_EDICTS          8192    // must change protocol to increase more
+#endif
 #define MAX_LIGHTSTYLES     256
+#ifndef EXTENDED_LIMITS
 #define MAX_MODELS          256     // these are sent over the net as bytes
 #define MAX_SOUNDS          256     // so they cannot be blindly increased
 #define MAX_IMAGES          256
+#else
+#define MAX_MODELS          (USHRT_MAX + 1)
+#define MAX_SOUNDS          (USHRT_MAX + 1)
+#define MAX_IMAGES          (USHRT_MAX + 1)
+#endif
 #define MAX_ITEMS           256
 #define MAX_GENERAL         (MAX_CLIENTS * 2) // general config strings
 
@@ -816,7 +826,11 @@ typedef enum {
 typedef struct {
     pmtype_t    pm_type;
 
+#ifndef EXTENDED_LIMITS
     short       origin[3];      // 12.3
+#else
+    int         origin[3];      // 12.3
+#endif
     short       velocity[3];    // 12.3
     byte        pm_flags;       // ducked, jump_held, etc
     byte        pm_time;        // each unit = 8 ms
@@ -1539,7 +1553,11 @@ typedef struct {
 
     int         rdflags;        // refdef flags
 
+#ifndef EXTENDED_LIMITS
     short       stats[MAX_STATS];       // fast status bar updates
+#else
+    int         stats[MAX_STATS];       // fast status bar updates
+#endif
 } player_state_t;
 
 #endif // SHARED_H

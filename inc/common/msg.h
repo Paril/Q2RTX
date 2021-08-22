@@ -24,19 +24,38 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 typedef struct {
     uint16_t    number;
+#ifndef EXTENDED_LIMITS
     int16_t     origin[3];
+#else
+    int32_t     origin[3];
+#endif
     int16_t     angles[3];
+#ifndef EXTENDED_LIMITS
     int16_t     old_origin[3];
+#else
+    int32_t     old_origin[3];
+#endif
+#ifndef EXTENDED_LIMITS
     uint8_t     modelindex;
     uint8_t     modelindex2;
     uint8_t     modelindex3;
     uint8_t     modelindex4;
+#else
+    uint16_t    modelindex;
+    uint16_t    modelindex2;
+    uint16_t    modelindex3;
+    uint16_t    modelindex4;
+#endif
     uint32_t    skinnum;
     uint32_t    effects;
     uint32_t    renderfx;
     uint32_t    solid;
     uint16_t    frame;
+#ifndef EXTENDED_LIMITS
     uint8_t     sound;
+#else
+    uint16_t    sound;
+#endif
     uint8_t     event;
 } entity_packed_t;
 
@@ -47,12 +66,20 @@ typedef struct {
     int8_t          kick_angles[3];
     int8_t          gunangles[3];
     int8_t          gunoffset[3];
+#ifndef EXTENDED_LIMITS
     uint8_t         gunindex;
+#else
+    uint16_t        gunindex;
+#endif
     uint8_t         gunframe;
     uint8_t         blend[4];
     uint8_t         fov;
     uint8_t         rdflags;
+#ifndef EXTENDED_LIMITS
     int16_t         stats[MAX_STATS];
+#else
+    int32_t         stats[MAX_STATS];
+#endif
 } player_packed_t;
 
 typedef enum {

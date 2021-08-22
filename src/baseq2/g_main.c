@@ -140,7 +140,7 @@ void InitGame(void)
     deathmatch = gi.cvar("deathmatch", "0", CVAR_LATCH);
     coop = gi.cvar("coop", "0", CVAR_LATCH);
     skill = gi.cvar("skill", "1", CVAR_LATCH);
-    maxentities = gi.cvar("maxentities", "1024", CVAR_LATCH);
+    maxentities = gi.cvar("maxentities", va("%i", MAX_EDICTS), CVAR_LATCH);
 
     // change anytime vars
     dmflags = gi.cvar("dmflags", "0", CVAR_SERVERINFO);

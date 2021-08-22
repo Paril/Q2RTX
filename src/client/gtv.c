@@ -77,11 +77,19 @@ static void emit_gamestate(void)
             length = MAX_QPATH;
         }
 
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
     }
+#ifndef EXTENDED_LIMITS
+    MSG_WriteLong(MAX_CONFIGSTRINGS);
+#else
     MSG_WriteShort(MAX_CONFIGSTRINGS);
+#endif
 
     // send portal bits
     MSG_WriteByte(0);

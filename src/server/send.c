@@ -535,7 +535,11 @@ static void emit_snd(client_t *client, message_packet_t *msg)
     int flags, entnum;
     int i;
 
+#ifndef EXTENDED_LIMITS
     entnum = msg->sendchan >> 3;
+#else
+    entnum = msg->sendchan;
+#endif
     flags = msg->flags;
 
     // check if position needs to be explicitly sent
@@ -547,7 +551,11 @@ static void emit_snd(client_t *client, message_packet_t *msg)
 
     MSG_WriteByte(svc_sound);
     MSG_WriteByte(flags);
+#ifndef EXTENDED_LIMITS
     MSG_WriteByte(msg->index);
+#else
+    MSG_WriteShort(msg->index);
+#endif
 
     if (flags & SND_VOLUME)
         MSG_WriteByte(msg->volume);
@@ -560,7 +568,11 @@ static void emit_snd(client_t *client, message_packet_t *msg)
 
     if (flags & SND_POS) {
         for (i = 0; i < 3; i++) {
+#ifndef EXTENDED_LIMITS
             MSG_WriteShort(msg->pos[i]);
+#else
+            MSG_WriteLong(msg->pos[i]);
+#endif
         }
     }
 }

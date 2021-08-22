@@ -436,7 +436,11 @@ static void write_cs_list(mvd_client_t *client, mvd_cs_t *cs)
 {
     for (; cs; cs = cs->next) {
         MSG_WriteByte(svc_configstring);
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(cs->index);
+#else
+        MSG_WriteLong(cs->index);
+#endif
         MSG_WriteString(cs->string);
         SV_ClientAddMessage(client->cl, MSG_RELIABLE | MSG_CLEAR);
     }
@@ -1627,7 +1631,11 @@ void MVD_UpdateConfigstring(mvd_t *mvd, int index)
     }
 
     MSG_WriteByte(svc_configstring);
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(index);
+#else
+    MSG_WriteLong(index);
+#endif
     MSG_WriteString(s);
 
     // broadcast configstring change

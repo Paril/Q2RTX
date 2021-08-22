@@ -187,7 +187,11 @@ MSG_WriteCoord
 
 static inline void MSG_WriteCoord(float f)
 {
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(COORD2SHORT(f));
+#else
+    MSG_WriteLong(COORD2SHORT(f));
+#endif
 }
 
 /*
@@ -684,6 +688,7 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
     else
         MSG_WriteByte(to->number);
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_MODEL)
         MSG_WriteByte(to->modelindex);
     if (bits & U_MODEL2)
@@ -692,6 +697,16 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
         MSG_WriteByte(to->modelindex3);
     if (bits & U_MODEL4)
         MSG_WriteByte(to->modelindex4);
+#else
+    if (bits & U_MODEL)
+        MSG_WriteShort(to->modelindex);
+    if (bits & U_MODEL2)
+        MSG_WriteShort(to->modelindex2);
+    if (bits & U_MODEL3)
+        MSG_WriteShort(to->modelindex3);
+    if (bits & U_MODEL4)
+        MSG_WriteShort(to->modelindex4);
+#endif
 
     if (bits & U_FRAME8)
         MSG_WriteByte(to->frame);
@@ -719,12 +734,21 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
     else if (bits & U_RENDERFX16)
         MSG_WriteShort(to->renderfx);
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_ORIGIN1)
         MSG_WriteShort(to->origin[0]);
     if (bits & U_ORIGIN2)
         MSG_WriteShort(to->origin[1]);
     if (bits & U_ORIGIN3)
         MSG_WriteShort(to->origin[2]);
+#else
+    if (bits & U_ORIGIN1)
+        MSG_WriteLong(to->origin[0]);
+    if (bits & U_ORIGIN2)
+        MSG_WriteLong(to->origin[1]);
+    if (bits & U_ORIGIN3)
+        MSG_WriteLong(to->origin[2]);
+#endif
 
     if ((flags & MSG_ES_SHORTANGLES) && (bits & U_ANGLE16)) {
         if (bits & U_ANGLE1)
@@ -742,14 +766,27 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
             MSG_WriteByte(to->angles[2] >> 8);
     }
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_OLDORIGIN) {
         MSG_WriteShort(to->old_origin[0]);
         MSG_WriteShort(to->old_origin[1]);
         MSG_WriteShort(to->old_origin[2]);
     }
+#else
+    if (bits & U_OLDORIGIN) {
+        MSG_WriteLong(to->old_origin[0]);
+        MSG_WriteLong(to->old_origin[1]);
+        MSG_WriteLong(to->old_origin[2]);
+    }
+#endif
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_SOUND)
         MSG_WriteByte(to->sound);
+#else
+    if (bits & U_SOUND)
+        MSG_WriteShort(to->sound);
+#endif
     if (bits & U_EVENT)
         MSG_WriteByte(to->event);
     if (bits & U_SOLID) {
@@ -886,11 +923,19 @@ void MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player
     if (pflags & PS_M_TYPE)
         MSG_WriteByte(to->pmove.pm_type);
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PS_M_ORIGIN) {
         MSG_WriteShort(to->pmove.origin[0]);
         MSG_WriteShort(to->pmove.origin[1]);
         MSG_WriteShort(to->pmove.origin[2]);
     }
+#else
+    if (pflags & PS_M_ORIGIN) {
+        MSG_WriteLong(to->pmove.origin[0]);
+        MSG_WriteLong(to->pmove.origin[1]);
+        MSG_WriteLong(to->pmove.origin[2]);
+    }
+#endif
 
     if (pflags & PS_M_VELOCITY) {
         MSG_WriteShort(to->pmove.velocity[0]);
@@ -934,8 +979,13 @@ void MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player
         MSG_WriteChar(to->kick_angles[2]);
     }
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PS_WEAPONINDEX)
         MSG_WriteByte(to->gunindex);
+#else
+    if (pflags & PS_WEAPONINDEX)
+        MSG_WriteShort(to->gunindex);
+#endif
 
     if (pflags & PS_WEAPONFRAME) {
         MSG_WriteByte(to->gunframe);
@@ -969,7 +1019,11 @@ void MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player
     MSG_WriteLong(statbits);
     for (i = 0; i < MAX_STATS; i++)
         if (statbits & (1 << i))
+#ifndef EXTENDED_LIMITS
             MSG_WriteShort(to->stats[i]);
+#else
+            MSG_WriteLong(to->stats[i]);
+#endif
 }
 
 int MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t    *from,
@@ -1133,6 +1187,7 @@ int MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t    *from,
     if (pflags & PS_M_TYPE)
         MSG_WriteByte(to->pmove.pm_type);
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PS_M_ORIGIN) {
         MSG_WriteShort(to->pmove.origin[0]);
         MSG_WriteShort(to->pmove.origin[1]);
@@ -1140,6 +1195,15 @@ int MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t    *from,
 
     if (eflags & EPS_M_ORIGIN2)
         MSG_WriteShort(to->pmove.origin[2]);
+#else
+    if (pflags & PS_M_ORIGIN) {
+        MSG_WriteLong(to->pmove.origin[0]);
+        MSG_WriteLong(to->pmove.origin[1]);
+    }
+
+    if (eflags & EPS_M_ORIGIN2)
+        MSG_WriteLong(to->pmove.origin[2]);
+#endif
 
     if (pflags & PS_M_VELOCITY) {
         MSG_WriteShort(to->pmove.velocity[0]);
@@ -1187,8 +1251,13 @@ int MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t    *from,
         MSG_WriteChar(to->kick_angles[2]);
     }
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PS_WEAPONINDEX)
         MSG_WriteByte(to->gunindex);
+#else
+    if (pflags & PS_WEAPONINDEX)
+        MSG_WriteShort(to->gunindex);
+#endif
 
     if (pflags & PS_WEAPONFRAME)
         MSG_WriteByte(to->gunframe);
@@ -1223,7 +1292,11 @@ int MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t    *from,
         MSG_WriteLong(statbits);
         for (i = 0; i < MAX_STATS; i++)
             if (statbits & (1 << i))
+#ifndef EXTENDED_LIMITS
                 MSG_WriteShort(to->stats[i]);
+#else
+                MSG_WriteLong(to->stats[i]);
+#endif
     }
 
     return eflags;
@@ -1352,6 +1425,7 @@ void MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from,
     if (pflags & PPS_M_TYPE)
         MSG_WriteByte(to->pmove.pm_type);
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PPS_M_ORIGIN) {
         MSG_WriteShort(to->pmove.origin[0]);
         MSG_WriteShort(to->pmove.origin[1]);
@@ -1359,6 +1433,15 @@ void MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from,
 
     if (pflags & PPS_M_ORIGIN2)
         MSG_WriteShort(to->pmove.origin[2]);
+#else
+    if (pflags & PPS_M_ORIGIN) {
+        MSG_WriteLong(to->pmove.origin[0]);
+        MSG_WriteLong(to->pmove.origin[1]);
+    }
+
+    if (pflags & PPS_M_ORIGIN2)
+        MSG_WriteLong(to->pmove.origin[2]);
+#endif
 
     //
     // write the rest of the player_state_t
@@ -1383,8 +1466,13 @@ void MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from,
         MSG_WriteChar(to->kick_angles[2]);
     }
 
+#ifndef EXTENDED_LIMITS
     if (pflags & PPS_WEAPONINDEX)
         MSG_WriteByte(to->gunindex);
+#else
+    if (pflags & PPS_WEAPONINDEX)
+        MSG_WriteShort(to->gunindex);
+#endif
 
     if (pflags & PPS_WEAPONFRAME)
         MSG_WriteByte(to->gunframe);
@@ -1574,7 +1662,11 @@ size_t MSG_ReadStringLine(char *dest, size_t size)
 
 static inline float MSG_ReadCoord(void)
 {
+#ifndef EXTENDED_LIMITS
     return SHORT2COORD(MSG_ReadShort());
+#else
+    return SHORT2COORD(MSG_ReadLong());
+#endif
 }
 
 void MSG_ReadPos(vec3_t pos)
@@ -1909,6 +2001,7 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
         return;
     }
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_MODEL) {
         to->modelindex = MSG_ReadByte();
     }
@@ -1921,6 +2014,20 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
     if (bits & U_MODEL4) {
         to->modelindex4 = MSG_ReadByte();
     }
+#else
+    if (bits & U_MODEL) {
+        to->modelindex = MSG_ReadShort();
+    }
+    if (bits & U_MODEL2) {
+        to->modelindex2 = MSG_ReadShort();
+    }
+    if (bits & U_MODEL3) {
+        to->modelindex3 = MSG_ReadShort();
+    }
+    if (bits & U_MODEL4) {
+        to->modelindex4 = MSG_ReadShort();
+    }
+#endif
 
     if (bits & U_FRAME8)
         to->frame = MSG_ReadByte();
@@ -1978,9 +2085,15 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
         MSG_ReadPos(to->old_origin);
     }
 
+#ifndef EXTENDED_LIMITS
     if (bits & U_SOUND) {
         to->sound = MSG_ReadByte();
     }
+#else
+    if (bits & U_SOUND) {
+        to->sound = MSG_ReadShort();
+    }
+#endif
 
     if (bits & U_EVENT) {
         to->event = MSG_ReadByte();
@@ -2028,11 +2141,19 @@ void MSG_ParseDeltaPlayerstate_Default(const player_state_t *from,
     if (flags & PS_M_TYPE)
         to->pmove.pm_type = MSG_ReadByte();
 
+#ifndef EXTENDED_LIMITS
     if (flags & PS_M_ORIGIN) {
         to->pmove.origin[0] = MSG_ReadShort();
         to->pmove.origin[1] = MSG_ReadShort();
         to->pmove.origin[2] = MSG_ReadShort();
     }
+#else
+    if (flags & PS_M_ORIGIN) {
+        to->pmove.origin[0] = MSG_ReadLong();
+        to->pmove.origin[1] = MSG_ReadLong();
+        to->pmove.origin[2] = MSG_ReadLong();
+    }
+#endif
 
     if (flags & PS_M_VELOCITY) {
         to->pmove.velocity[0] = MSG_ReadShort();
@@ -2076,9 +2197,15 @@ void MSG_ParseDeltaPlayerstate_Default(const player_state_t *from,
         to->kick_angles[2] = MSG_ReadChar() * 0.25f;
     }
 
+#ifndef EXTENDED_LIMITS
     if (flags & PS_WEAPONINDEX) {
         to->gunindex = MSG_ReadByte();
     }
+#else
+    if (flags & PS_WEAPONINDEX) {
+        to->gunindex = MSG_ReadShort();
+    }
+#endif
 
     if (flags & PS_WEAPONFRAME) {
         to->gunframe = MSG_ReadByte();
@@ -2107,7 +2234,11 @@ void MSG_ParseDeltaPlayerstate_Default(const player_state_t *from,
     statbits = MSG_ReadLong();
     for (i = 0; i < MAX_STATS; i++)
         if (statbits & (1 << i))
+#ifndef EXTENDED_LIMITS
             to->stats[i] = MSG_ReadShort();
+#else
+            to->stats[i] = MSG_ReadLong();
+#endif
 }
 
 
@@ -2141,6 +2272,7 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
     if (flags & PS_M_TYPE)
         to->pmove.pm_type = MSG_ReadByte();
 
+#ifndef EXTENDED_LIMITS
     if (flags & PS_M_ORIGIN) {
         to->pmove.origin[0] = MSG_ReadShort();
         to->pmove.origin[1] = MSG_ReadShort();
@@ -2149,6 +2281,16 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
     if (extraflags & EPS_M_ORIGIN2) {
         to->pmove.origin[2] = MSG_ReadShort();
     }
+#else
+    if (flags & PS_M_ORIGIN) {
+        to->pmove.origin[0] = MSG_ReadLong();
+        to->pmove.origin[1] = MSG_ReadLong();
+    }
+
+    if (extraflags & EPS_M_ORIGIN2) {
+        to->pmove.origin[2] = MSG_ReadLong();
+    }
+#endif
 
     if (flags & PS_M_VELOCITY) {
         to->pmove.velocity[0] = MSG_ReadShort();
@@ -2198,9 +2340,15 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
         to->kick_angles[2] = MSG_ReadChar() * 0.25f;
     }
 
+#ifndef EXTENDED_LIMITS
     if (flags & PS_WEAPONINDEX) {
         to->gunindex = MSG_ReadByte();
     }
+#else
+    if (flags & PS_WEAPONINDEX) {
+        to->gunindex = MSG_ReadShort();
+    }
+#endif
 
     if (flags & PS_WEAPONFRAME) {
         to->gunframe = MSG_ReadByte();
@@ -2236,7 +2384,11 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
         statbits = MSG_ReadLong();
         for (i = 0; i < MAX_STATS; i++) {
             if (statbits & (1 << i)) {
+#ifndef EXTENDED_LIMITS
                 to->stats[i] = MSG_ReadShort();
+#else
+                to->stats[i] = MSG_ReadLong();
+#endif
             }
         }
     }
@@ -2276,6 +2428,7 @@ void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
     if (flags & PPS_M_TYPE)
         to->pmove.pm_type = MSG_ReadByte();
 
+#ifndef EXTENDED_LIMITS
     if (flags & PPS_M_ORIGIN) {
         to->pmove.origin[0] = MSG_ReadShort();
         to->pmove.origin[1] = MSG_ReadShort();
@@ -2284,6 +2437,16 @@ void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
     if (flags & PPS_M_ORIGIN2) {
         to->pmove.origin[2] = MSG_ReadShort();
     }
+#else
+    if (flags & PPS_M_ORIGIN) {
+        to->pmove.origin[0] = MSG_ReadLong();
+        to->pmove.origin[1] = MSG_ReadLong();
+    }
+
+    if (flags & PPS_M_ORIGIN2) {
+        to->pmove.origin[2] = MSG_ReadLong();
+    }
+#endif
 
     //
     // parse the rest of the player_state_t
@@ -2309,9 +2472,15 @@ void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
         to->kick_angles[2] = MSG_ReadChar() * 0.25f;
     }
 
+#ifndef EXTENDED_LIMITS
     if (flags & PPS_WEAPONINDEX) {
         to->gunindex = MSG_ReadByte();
     }
+#else
+    if (flags & PPS_WEAPONINDEX) {
+        to->gunindex = MSG_ReadShort();
+    }
+#endif
 
     if (flags & PPS_WEAPONFRAME) {
         to->gunframe = MSG_ReadByte();
@@ -2347,7 +2516,11 @@ void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
         statbits = MSG_ReadLong();
         for (i = 0; i < MAX_STATS; i++) {
             if (statbits & (1 << i)) {
+#ifndef EXTENDED_LIMITS
                 to->stats[i] = MSG_ReadShort();
+#else
+                to->stats[i] = MSG_ReadLong();
+#endif
             }
         }
     }

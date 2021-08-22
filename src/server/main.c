@@ -532,7 +532,7 @@ static void SVC_Info(void)
         return; // ignore in single player
 
     version = atoi(Cmd_Argv(1));
-    if (version < PROTOCOL_VERSION_DEFAULT || version > PROTOCOL_VERSION_Q2PRO)
+    if (version < PROTOCOL_VERSION_Q2 || version > PROTOCOL_VERSION_Q2PRO)
         return; // ignore invalid versions
 
     len = Q_scnprintf(buffer, sizeof(buffer),
@@ -646,7 +646,7 @@ static qboolean parse_basic_params(conn_params_t *p)
         return reject("Unsupported protocol version %d.\n", p->protocol);
 
     // check for valid, but outdated protocol version
-    if (p->protocol < PROTOCOL_VERSION_DEFAULT)
+    if (p->protocol < PROTOCOL_VERSION_Q2)
         return reject("You need Quake 2 version 3.19 or higher.\n");
 
     return qtrue;
@@ -1150,7 +1150,7 @@ static void SVC_DirectConnect(void)
 
     SV_InitClientSend(newcl);
 
-    if (newcl->protocol == PROTOCOL_VERSION_DEFAULT) {
+    if (newcl->protocol == PROTOCOL_VERSION_Q2) {
         newcl->WriteFrame = SV_WriteFrameToClient_Default;
     } else {
         newcl->WriteFrame = SV_WriteFrameToClient_Enhanced;
@@ -1454,7 +1454,7 @@ static void SV_PacketEvent(void)
 
         // read the qport out of the message so we can fix up
         // stupid address translating routers
-        if (client->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (client->protocol == PROTOCOL_VERSION_Q2) {
             qport = msg_read.data[8] | (msg_read.data[9] << 8);
             if (netchan->qport != qport) {
                 continue;
@@ -2129,7 +2129,7 @@ void SV_Init(void)
     sv_packetdup_hack = Cvar_Get("sv_packetdup_hack", "0", 0);
 #endif
 
-    sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
+    sv_allow_map = Cvar_Get("sv_allow_map", "0", CVAR_ARCHIVE);
 
 #if !USE_CLIENT
     sv_recycle = Cvar_Get("sv_recycle", "0", 0);

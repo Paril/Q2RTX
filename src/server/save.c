@@ -105,11 +105,19 @@ static int write_level_file(void)
         if (len > MAX_QPATH)
             len = MAX_QPATH;
 
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(s, len);
         MSG_WriteByte(0);
     }
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(MAX_CONFIGSTRINGS);
+#else
+    MSG_WriteLong(MAX_CONFIGSTRINGS);
+#endif
 
     len = CM_WritePortalBits(&sv.cm, portalbits);
     MSG_WriteByte(len);
@@ -426,7 +434,11 @@ static int read_level_file(void)
 
     // read all configstrings
     while (1) {
+#ifndef EXTENDED_LIMITS
         index = MSG_ReadShort();
+#else
+        index = MSG_ReadLong();
+#endif
         if (index == MAX_CONFIGSTRINGS)
             break;
 

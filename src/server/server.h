@@ -229,7 +229,11 @@ typedef struct {
             uint8_t     volume;
             uint8_t     attenuation;
             uint8_t     timeofs;
+#ifndef EXTENDED_LIMITS
             int16_t     pos[3];     // saved in case entity is freed
+#else
+            int32_t     pos[3];     // saved in case entity is freed
+#endif
         };
     };
 } message_packet_t;

@@ -25,10 +25,20 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define MAX_MSGLEN  0x8000  // max length of a message, 32k
 
+#define PROTOCOL_VERSION_EXT        666 // extended limits
 #define PROTOCOL_VERSION_OLD        26
-#define PROTOCOL_VERSION_DEFAULT    34
+#define PROTOCOL_VERSION_Q2         34
+#ifndef EXTENDED_LIMITS
+#define PROTOCOL_VERSION_DEFAULT    PROTOCOL_VERSION_Q2
+#else
+#define PROTOCOL_VERSION_DEFAULT    PROTOCOL_VERSION_EXT
+#endif
 #define PROTOCOL_VERSION_R1Q2       35
+#ifndef EXTENDED_LIMITS
 #define PROTOCOL_VERSION_Q2PRO      36
+#else
+#define PROTOCOL_VERSION_Q2PRO      PROTOCOL_VERSION_EXT
+#endif
 #define PROTOCOL_VERSION_MVD        37 // not used for UDP connections
 
 #define PROTOCOL_VERSION_R1Q2_MINIMUM           1903    // b6377
@@ -289,7 +299,14 @@ typedef enum {
 #define SND_ATTENUATION     (1<<1)  // a byte
 #define SND_POS             (1<<2)  // three coordinates
 #define SND_ENT             (1<<3)  // a short 0-2: channel, 3-12: entity
+// for EXTENDED_LIMITS: short: entity
 #define SND_OFFSET          (1<<4)  // a byte, msec offset from frame start
+#ifdef EXTENDED_LIMITS
+// for EXTENDED_LIMITS, the flags bit is stuffed with the last 3 bits
+// being used as channel ID
+#define SND_CHANNEL_BITS    (1<<5|1<<6|1<<7)
+#define SND_CHANNEL_SHIFT   5
+#endif
 
 #define DEFAULT_SOUND_PACKET_VOLUME    1.0
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0

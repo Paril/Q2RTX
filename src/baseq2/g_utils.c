@@ -443,7 +443,7 @@ G_TouchTriggers
 void    G_TouchTriggers(edict_t *ent)
 {
     int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+    static edict_t     *touch[MAX_EDICTS], *hit;
 
     // dead things don't activate triggers!
     if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
@@ -475,7 +475,7 @@ to force all entities it covers to immediately touch it
 void    G_TouchSolids(edict_t *ent)
 {
     int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+    static edict_t     *touch[MAX_EDICTS], *hit;
 
     num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
                        , MAX_EDICTS, AREA_SOLID);

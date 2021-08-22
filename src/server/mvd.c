@@ -635,11 +635,19 @@ static void emit_gamestate(void)
             length = MAX_QPATH;
         }
 
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
     }
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(MAX_CONFIGSTRINGS);
+#else
+    MSG_WriteLong(MAX_CONFIGSTRINGS);
+#endif
 
     // send baseline frame
     portalbytes = CM_WritePortalBits(&sv.cm, portalbits);
@@ -1285,7 +1293,11 @@ void SV_MvdStartSound(int entnum, int channel, int flags,
     if (flags & SND_OFFSET)
         SZ_WriteByte(&mvd.datagram, timeofs);
 
+#ifndef EXTENDED_LIMITS
     sendchan = (entnum << 3) | (channel & 7);
+#else
+    sendchan = entnum;
+#endif
     SZ_WriteShort(&mvd.datagram, sendchan);
 }
 

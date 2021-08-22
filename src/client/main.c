@@ -401,7 +401,7 @@ void CL_CheckForResend(void)
         strcpy(cls.servername, "localhost");
         cls.serverAddress.type = NA_LOOPBACK;
         cls.serverProtocol = cl_protocol->integer;
-        if (cls.serverProtocol < PROTOCOL_VERSION_DEFAULT ||
+        if (cls.serverProtocol < PROTOCOL_VERSION_Q2 ||
             cls.serverProtocol > PROTOCOL_VERSION_Q2PRO) {
             cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
         }
@@ -531,7 +531,7 @@ usage:
 
     if (argc > 2) {
         protocol = atoi(Cmd_Argv(2));
-        if (protocol < PROTOCOL_VERSION_DEFAULT ||
+        if (protocol < PROTOCOL_VERSION_Q2 ||
             protocol > PROTOCOL_VERSION_Q2PRO) {
             goto usage;
         }
@@ -1391,7 +1391,7 @@ static void CL_ConnectionlessPacket(void)
                 break;
             }
         default:
-            cls.serverProtocol = PROTOCOL_VERSION_DEFAULT;
+            cls.serverProtocol = PROTOCOL_VERSION_Q2;
             break;
         }
         Com_DPrintf("Selected protocol %d\n", cls.serverProtocol);

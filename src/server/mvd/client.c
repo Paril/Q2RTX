@@ -603,7 +603,11 @@ static void demo_emit_snapshot(mvd_t *mvd)
             len = MAX_QPATH;
 
         MSG_WriteByte(mvd_configstring);
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(to, len);
         MSG_WriteByte(0);
     }
@@ -1880,12 +1884,20 @@ static void emit_gamestate(mvd_t *mvd)
         if (len > MAX_QPATH)
             len = MAX_QPATH;
 
+#ifndef EXTENDED_LIMITS
         MSG_WriteShort(i);
+#else
+        MSG_WriteLong(i);
+#endif
         MSG_WriteData(s, len);
         MSG_WriteByte(0);
     }
 
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(MAX_CONFIGSTRINGS);
+#else
+    MSG_WriteLong(MAX_CONFIGSTRINGS);
+#endif
 
     // send baseline frame
     emit_base_frame(mvd);

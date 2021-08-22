@@ -405,7 +405,11 @@ static void PF_configstring(int index, const char *val)
 
     // send the update to everyone
     MSG_WriteByte(svc_configstring);
+#ifndef EXTENDED_LIMITS
     MSG_WriteShort(index);
+#else
+    MSG_WriteLong(index);
+#endif
     MSG_WriteData(val, len);
     MSG_WriteByte(0);
 
@@ -536,10 +540,16 @@ static void PF_StartSound(edict_t *edict, int channel,
         return;
     }
 
+#ifndef EXTENDED_LIMITS
     sendchan = (ent << 3) | (channel & 7);
-
     // always send the entity number for channel overrides
     flags = SND_ENT;
+#else
+    sendchan = ent;
+    // always send the entity number for channel overrides
+    flags = SND_ENT | ((channel & 7) << SND_CHANNEL_SHIFT);
+#endif
+
     if (volume != DEFAULT_SOUND_PACKET_VOLUME)
         flags |= SND_VOLUME;
     if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
@@ -592,7 +602,11 @@ static void PF_StartSound(edict_t *edict, int channel,
         if (channel & CHAN_RELIABLE) {
             MSG_WriteByte(svc_sound);
             MSG_WriteByte(flags | SND_POS);
+#ifndef EXTENDED_LIMITS
             MSG_WriteByte(soundindex);
+#else
+            MSG_WriteShort(soundindex);
+#endif
 
             if (flags & SND_VOLUME)
                 MSG_WriteByte(volume * 255);
@@ -620,7 +634,7 @@ static void PF_StartSound(edict_t *edict, int channel,
         }
 
         // default client doesn't know that bmodels have weird origins
-        if (edict->solid == SOLID_BSP && client->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (edict->solid == SOLID_BSP && client->protocol == PROTOCOL_VERSION_Q2) {
             flags |= SND_POS;
         }
 
@@ -662,10 +676,17 @@ static void PF_PositionedSound(vec3_t origin, edict_t *entity, int channel,
 
     ent = NUM_FOR_EDICT(entity);
 
+#ifndef EXTENDED_LIMITS
     sendchan = (ent << 3) | (channel & 7);
-
+-
     // always send the entity number for channel overrides
-    flags = SND_ENT | SND_POS;
+    flags = SND_ENT;
+#else
+    sendchan = ent;
+    // always send the entity number for channel overrides
+    flags = SND_ENT | ((channel & 7) << SND_CHANNEL_SHIFT);
+#endif
+
     if (volume != DEFAULT_SOUND_PACKET_VOLUME)
         flags |= SND_VOLUME;
     if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
@@ -675,7 +696,11 @@ static void PF_PositionedSound(vec3_t origin, edict_t *entity, int channel,
 
     MSG_WriteByte(svc_sound);
     MSG_WriteByte(flags);
+#ifndef EXTENDED_LIMITS
     MSG_WriteByte(soundindex);
+#else
+    MSG_WriteShort(soundindex);
+#endif
 
     if (flags & SND_VOLUME)
         MSG_WriteByte(volume * 255);
