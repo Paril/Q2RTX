@@ -678,7 +678,7 @@ static void PF_PositionedSound(vec3_t origin, edict_t *entity, int channel,
 
 #ifndef EXTENDED_LIMITS
     sendchan = (ent << 3) | (channel & 7);
--
+
     // always send the entity number for channel overrides
     flags = SND_ENT;
 #else
