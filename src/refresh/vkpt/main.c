@@ -988,7 +988,7 @@ init_vulkan()
 
 	if (picked_device < 0)
 	{
-		Com_Error(ERR_FATAL, "No ray tracing capable GPU found.");
+		Com_Error(ERR_FATAL, "No ray tracing capable GPU found; use `vid_rtx 0` to run in GL mode.");
 	}
 
 	qvk.physical_device = devices[picked_device];

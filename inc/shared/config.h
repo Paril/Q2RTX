@@ -81,3 +81,4 @@ typedef __int32     ssize_t;
 #pragma warning(disable:4267)
 #pragma warning(disable:4305)
 
+#define EXTENDED_LIMITS
