@@ -153,7 +153,7 @@ static void MVD_ParseMulticast(mvd_t *mvd, mvd_ops_t op, int extrabits)
 {
     mvd_client_t    *client;
     client_t    *cl;
-    byte        mask[VIS_MAX_BYTES];
+    static byte        mask[VIS_MAX_BYTES];
     mleaf_t     *leaf1, *leaf2;
     vec3_t      org;
     qboolean    reliable = qfalse;
@@ -496,7 +496,7 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
     vec3_t      origin;
     mvd_client_t        *client;
     client_t    *cl;
-    byte        mask[VIS_MAX_BYTES];
+    static byte        mask[VIS_MAX_BYTES];
     mleaf_t     *leaf;
     int         area;
     player_state_t      *ps;

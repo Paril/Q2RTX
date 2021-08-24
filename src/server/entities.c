@@ -392,8 +392,8 @@ void SV_BuildClientFrame(client_t *client)
 	int         l;
     int         clientarea, clientcluster;
     mleaf_t     *leaf;
-    byte        clientphs[VIS_MAX_BYTES];
-    byte        clientpvs[VIS_MAX_BYTES];
+    static byte        clientphs[VIS_MAX_BYTES];
+    static byte        clientpvs[VIS_MAX_BYTES];
     qboolean    ent_visible;
     int cull_nonvisible_entities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
 

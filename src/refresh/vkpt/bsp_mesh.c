@@ -1422,7 +1422,7 @@ compute_sky_visibility(bsp_mesh_t *wm, bsp_t *bsp)
 
 	int numclusters = bsp->vis->numclusters;
 
-	char clusters_with_sky[VIS_MAX_BYTES];
+	static char clusters_with_sky[VIS_MAX_BYTES];
 
 	memset(clusters_with_sky, 0, VIS_MAX_BYTES);
 	
