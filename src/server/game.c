@@ -680,11 +680,11 @@ static void PF_PositionedSound(vec3_t origin, edict_t *entity, int channel,
     sendchan = (ent << 3) | (channel & 7);
 
     // always send the entity number for channel overrides
-    flags = SND_ENT;
+    flags = SND_ENT | SND_POS;
 #else
     sendchan = ent;
     // always send the entity number for channel overrides
-    flags = SND_ENT | ((channel & 7) << SND_CHANNEL_SHIFT);
+    flags = SND_ENT | SND_POS | ((channel & 7) << SND_CHANNEL_SHIFT);
 #endif
 
     if (volume != DEFAULT_SOUND_PACKET_VOLUME)

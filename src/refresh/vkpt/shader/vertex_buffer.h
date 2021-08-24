@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _VERTEX_BUFFER_H_
 #define _VERTEX_BUFFER_H_
 
-#define MAX_VERT_BSP            (1 << 21)
+#define MAX_VERT_BSP            (1 << 26)
 
 #define MAX_VERT_MODEL          (1 << 23)
 #define MAX_IDX_MODEL           (1 << 22)

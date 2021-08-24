@@ -215,7 +215,11 @@ typedef enum {
 #define MSG_CLEAR       2
 #define MSG_COMPRESS    4
 
+#ifndef EXTENDED_LIMITS
 #define MAX_SOUND_PACKET   14
+#else
+#define MAX_SOUND_PACKET   20
+#endif
 
 typedef struct {
     list_t              entry;
