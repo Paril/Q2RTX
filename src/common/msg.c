@@ -2016,16 +2016,16 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
     }
 #else
     if (bits & U_MODEL) {
-        to->modelindex = MSG_ReadShort();
+        to->modelindex = MSG_ReadWord();
     }
     if (bits & U_MODEL2) {
-        to->modelindex2 = MSG_ReadShort();
+        to->modelindex2 = MSG_ReadWord();
     }
     if (bits & U_MODEL3) {
-        to->modelindex3 = MSG_ReadShort();
+        to->modelindex3 = MSG_ReadWord();
     }
     if (bits & U_MODEL4) {
-        to->modelindex4 = MSG_ReadShort();
+        to->modelindex4 = MSG_ReadWord();
     }
 #endif
 
@@ -2091,7 +2091,7 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
     }
 #else
     if (bits & U_SOUND) {
-        to->sound = MSG_ReadShort();
+        to->sound = MSG_ReadWord();
     }
 #endif
 
@@ -2203,7 +2203,7 @@ void MSG_ParseDeltaPlayerstate_Default(const player_state_t *from,
     }
 #else
     if (flags & PS_WEAPONINDEX) {
-        to->gunindex = MSG_ReadShort();
+        to->gunindex = MSG_ReadWord();
     }
 #endif
 
@@ -2346,7 +2346,7 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
     }
 #else
     if (flags & PS_WEAPONINDEX) {
-        to->gunindex = MSG_ReadShort();
+        to->gunindex = MSG_ReadWord();
     }
 #endif
 
@@ -2478,7 +2478,7 @@ void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
     }
 #else
     if (flags & PPS_WEAPONINDEX) {
-        to->gunindex = MSG_ReadShort();
+        to->gunindex = MSG_ReadWord();
     }
 #endif
 

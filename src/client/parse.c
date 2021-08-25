@@ -814,7 +814,7 @@ static void CL_ParseStartSoundPacket(void)
 #ifndef EXTENDED_LIMITS
     snd.index = MSG_ReadByte();
 #else
-    snd.index = MSG_ReadShort();
+    snd.index = MSG_ReadWord();
 #endif
     if (snd.index == -1)
         Com_Error(ERR_DROP, "%s: read past end of message", __func__);
@@ -840,7 +840,7 @@ static void CL_ParseStartSoundPacket(void)
         channel = MSG_ReadShort();
         entity = channel >> 3;
 #else
-        entity = MSG_ReadShort();
+        entity = MSG_ReadWord();
         channel = (flags & SND_CHANNEL_BITS) >> SND_CHANNEL_SHIFT;
 #endif
         if (entity < 0 || entity >= MAX_EDICTS)

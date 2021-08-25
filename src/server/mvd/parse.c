@@ -505,7 +505,11 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
     int         i;
 
     flags = MSG_ReadByte();
+#ifndef EXTENDED_LIMITS
     index = MSG_ReadByte();
+#else
+    index = MSG_ReadWord();
+#endif
 
     volume = attenuation = offset = 0;
     if (flags & SND_VOLUME)
@@ -520,7 +524,7 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
     sendchan = MSG_ReadShort();
     entnum = sendchan >> 3;
 #else
-    entnum = MSG_ReadShort();
+    entnum = MSG_ReadWord();
     sendchan = (flags & SND_CHANNEL_BITS) >> SND_CHANNEL_SHIFT;
 #endif
     if (entnum < 0 || entnum >= MAX_EDICTS) {
