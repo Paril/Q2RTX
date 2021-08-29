@@ -1089,7 +1089,7 @@ static void CL_ParseZPacket(void)
 {
 #if USE_ZLIB
     sizebuf_t   temp;
-    byte        buffer[MAX_MSGLEN];
+    static byte        buffer[MAX_MSGLEN];
     int         inlen, outlen;
 
     if (msg_read.data != msg_read_buffer) {

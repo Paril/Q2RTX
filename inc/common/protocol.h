@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // protocol.h -- communications protocols
 //
 
-#define MAX_MSGLEN  0x8000  // max length of a message, 32k
+#define MAX_MSGLEN  0x800000  // max length of a message, 32k
 
 #define PROTOCOL_VERSION_EXT        666 // extended limits
 #define PROTOCOL_VERSION_OLD        26
