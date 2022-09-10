@@ -348,10 +348,34 @@ STB_IMAGE LOADING
 =================================================================
 */
 
+static bool supports_extended_pixel_format(void)
+{
+	return cls.ref_type == REF_TYPE_VKPT;
+}
+
 IMG_LOAD(STB)
 {
 	int w, h, channels;
-	byte* data = stbi_load_from_memory(rawdata, rawlen, &w, &h, &channels, 4);
+	byte* data = NULL;
+	if(supports_extended_pixel_format())
+	{
+		int img_comp;
+		stbi_info_from_memory(rawdata, rawlen, NULL, NULL, &img_comp);
+		bool img_is_16 = stbi_is_16_bit_from_memory(rawdata, rawlen);
+
+		if(img_comp == 1 && img_is_16)
+		{
+			// Special: 16bpc grayscale
+			data = (byte*)stbi_load_16_from_memory(rawdata, rawlen, &w, &h, &channels, 1);
+			image->pixel_format = PF_R16_UNORM;
+		}
+		// else: handle default case (8bpc RGBA) below
+	}
+	if(!data)
+	{
+		data = stbi_load_from_memory(rawdata, rawlen, &w, &h, &channels, 4);
+		image->pixel_format = PF_R8G8B8A8_UNORM;
+	}
 
 	if (!data)
 		return Q_ERR_LIBRARY_ERROR;
@@ -998,24 +1022,6 @@ static int _try_image_format(imageformat_t fmt, image_t *image, int try_src, byt
     len = FS_LoadFileFlags(image->name, (void **)&data, fs_flags);
     if (!data) {
         return len;
-    }
-    /* Don't prefer game image if it's identical to the base version
-       Some games (eg rogue) ship image assets that are identical to the
-       baseq2 version.
-       If that is the case, prefer the baseq2 copy - because those may have
-       override image and additional material images!
-     */
-    if (try_src == TRY_IMAGE_SRC_GAME) {
-        byte *data_base;
-        int len_base;
-        len_base = FS_LoadFileFlags(image->name, (void **)&data_base, FS_PATH_BASE);
-        if((len == len_base) && (memcmp(data, data_base, len) == 0)) {
-            // Identical data in game, pretend file doesn't exist
-            FS_FreeFile(data);
-            FS_FreeFile(data_base);
-            return Q_ERR_NOENT;
-        }
-        FS_FreeFile(data_base);
     }
 
     // decompress the image

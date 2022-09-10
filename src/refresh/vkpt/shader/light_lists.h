@@ -84,12 +84,11 @@ projected_sphere_area(mat3 positions, vec3 p, vec3 n, vec3 V, float phong_exp, f
 }
 
 float
-projected_spotlight_area(mat3 positions, vec3 p, vec3 n, vec3 V, float phong_exp, float phong_scale, float phong_weight)
+projected_spotlight_area(mat3 positions, uint spot_style, vec3 p, vec3 n, vec3 V, float phong_exp, float phong_scale, float phong_weight)
 {
 	vec3 position = positions[0] - p;
 	float sphere_radius = positions[1].x;
-	const float cosTotalWidth = positions[1].y;
-	const float cosFalloffStart = positions[1].z;
+
 	
 	float dist = length(position);
 	float rdist = 1.0 / dist;
@@ -103,13 +102,30 @@ projected_spotlight_area(mat3 positions, vec3 p, vec3 n, vec3 V, float phong_exp
 
 	float cosTheta = dot(-L, positions[2]); // cosine of angle to spot direction
 	float falloff;
-	if(cosTheta < cosTotalWidth)
-		falloff = 0;
-	else if (cosTheta > cosFalloffStart)
-		falloff = 1;
-	else {
-		float delta = (cosTheta - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
-		falloff = (delta * delta) * (delta * delta);
+	
+	if(spot_style == DYNLIGHT_SPOT_EMISSION_PROFILE_FALLOFF) {
+		const float cosTotalWidth = positions[1].y;
+		const float cosFalloffStart = positions[1].z;
+
+		if(cosTheta < cosTotalWidth)
+			falloff = 0;
+		else if (cosTheta > cosFalloffStart)
+			falloff = 1;
+		else {
+			float delta = (cosTheta - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
+			falloff = (delta * delta) * (delta * delta);
+		}
+	} else if(spot_style == DYNLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE) {
+		const float theta = acos(cosTheta);
+		const float totalWidth = positions[1].y;
+		const uint texture_num = floatBitsToUint(positions[1].z);
+
+		if (cosTheta >= 0) {
+			// Use the angle directly as texture coordinate for better angular resolution next to the center of the beam
+			float tc = clamp(theta / totalWidth, 0, 1);
+			falloff = global_texture(texture_num, vec2(tc, 0)).r;
+		} else
+			falloff = 0;
 	}
 
 	float irradiance = 2 * falloff * square(rdist);
@@ -199,12 +215,10 @@ sample_projected_sphere(vec3 p, mat3 positions, vec2 rnd, out vec3 light_normal,
 }
 
 vec3
-sample_projected_spotlight(vec3 p, mat3 positions, vec2 rnd, out vec3 light_normal, out float pdfw)
+sample_projected_spotlight(vec3 p, uint spot_style, mat3 positions, vec2 rnd, out vec3 light_normal, out float pdfw)
 {
 	vec3 light_center = positions[0];
 	float emitter_radius = positions[1].x;
-	const float cosTotalWidth = positions[1].y;
-	const float cosFalloffStart = positions[1].z;
 	
 	mat3 onb = construct_ONB_frisvad(positions[2]);
 	// Emit light from a small disk around the origin
@@ -220,13 +234,30 @@ sample_projected_spotlight(vec3 p, mat3 positions, vec2 rnd, out vec3 light_norm
 	vec3 L_l = -L * onb;
 	float cosTheta = L_l.y; // cosine of angle to spot direction
 	float falloff;
-	if(cosTheta < cosTotalWidth)
-		falloff = 0;
-	else if (cosTheta > cosFalloffStart)
-		falloff = 1;
-	else {
-		float delta = (cosTheta - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
-		falloff = (delta * delta) * (delta * delta);
+	
+	if(spot_style == DYNLIGHT_SPOT_EMISSION_PROFILE_FALLOFF) {
+		const float cosTotalWidth = positions[1].y;
+		const float cosFalloffStart = positions[1].z;
+
+		if(cosTheta < cosTotalWidth)
+			falloff = 0;
+		else if (cosTheta > cosFalloffStart)
+			falloff = 1;
+		else {
+			float delta = (cosTheta - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
+			falloff = (delta * delta) * (delta * delta);
+		}
+	} else if(spot_style == DYNLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE) {
+		const float theta = acos(cosTheta);
+		const float totalWidth = positions[1].y;
+		const uint texture_num = floatBitsToUint(positions[1].z);
+
+		if (cosTheta >= 0) {
+			// Use the angle directly as texture coordinate for better angular resolution next to the center of the beam
+			float tc = clamp(theta / totalWidth, 0, 1);
+			falloff = global_texture(texture_num, vec2(tc, 0)).r;
+		} else
+			falloff = 0;
 	}
 	
 	float projected_area = 2 * falloff * square(rdist);
@@ -304,7 +335,10 @@ sample_lights(
 		LightPolygon light = get_light_polygon(current_idx);
 
 		float m = 0.0f;
-		switch(uint(light.type)){
+		uint light_type = uint(light.type);
+		uint light_style = light_type >> 4;
+		light_type &= 0xf;
+		switch(light_type){
 			case DYNLIGHT_POLYGON:
 				m = projected_tri_area(light.positions, p, n, V, phong_exp, phong_scale, phong_weight);
 				break;
@@ -312,7 +346,7 @@ sample_lights(
 				m = projected_sphere_area(light.positions, p, n, V, phong_exp, phong_scale, phong_weight);
 				break;
 			case DYNLIGHT_SPOT:
-				m = projected_spotlight_area(light.positions, p, n, V, phong_exp, phong_scale, phong_weight);
+				m = projected_spotlight_area(light.positions, light_style, p, n, V, phong_exp, phong_scale, phong_weight);
 				break;
 		}
 
@@ -397,8 +431,11 @@ sample_lights(
 		LightPolygon light = get_light_polygon(current_idx);
 
 		vec3 light_normal;
-
-		switch(uint(light.type)){
+		uint light_type = uint(light.type);
+		uint light_style = light_type >> 4;
+		light_type &= 0xf;
+		
+		switch(light_type){
 			case DYNLIGHT_POLYGON:
 				position_light = sample_projected_triangle(p, light.positions, rng.yz, light_normal, pdfw);
 				break;
@@ -406,7 +443,7 @@ sample_lights(
 				position_light = sample_projected_sphere(p, light.positions, rng.yz, light_normal, pdfw);
 				break;
 			case DYNLIGHT_SPOT:
-				position_light = sample_projected_spotlight(p, light.positions, rng.yz, light_normal, pdfw);
+				position_light = sample_projected_spotlight(p, light_style, light.positions, rng.yz, light_normal, pdfw);
 				break;
 		}
 		
@@ -437,7 +474,6 @@ sample_lights(
 
 	light_color /= pdf;
 }
-
 
 #endif /*_LIGHT_LISTS_*/
 

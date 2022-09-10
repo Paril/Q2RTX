@@ -144,7 +144,11 @@ get_unshadowed_path_contrib(
     LightPolygon light = get_light_polygon(light_idx);
 		
 	float m = 0.0f;
-	switch(uint(light.type))
+	uint light_type = uint(light.type);
+	uint light_style = light_type >> 4;
+	light_type &= 0xf;
+	
+	switch(light_type)
 	{
 		case DYNLIGHT_POLYGON:
 			m = projected_tri_area(light.positions, position, normal, view_direction, phong_exp, phong_scale, phong_weight);
@@ -153,7 +157,7 @@ get_unshadowed_path_contrib(
 			m = projected_sphere_area(light.positions, position, normal, view_direction, phong_exp, phong_scale, phong_weight);
 			break;
 		case DYNLIGHT_SPOT:
-			m = projected_spotlight_area(light.positions, position, normal, view_direction, phong_exp, phong_scale, phong_weight);
+			m = projected_spotlight_area(light.positions, light_style, position, normal, view_direction, phong_exp, phong_scale, phong_weight);
 			break;
 	}
 	
@@ -213,8 +217,11 @@ process_selected_light_restir(
 		LightPolygon light = get_light_polygon(light_idx);
 		
 		vec3 light_normal;
-
-		switch(uint(light.type))
+		uint light_type = uint(light.type);
+		uint light_style = light_type >> 4;
+		light_type &= 0xf;
+		
+		switch(light_type)
 		{
 			case DYNLIGHT_POLYGON:
 				pos_on_light_polygonal = sample_projected_triangle(position, light.positions, light_position , light_normal, polygonal_light_pdfw);
@@ -223,7 +230,7 @@ process_selected_light_restir(
 				pos_on_light_polygonal = sample_projected_sphere(position, light.positions, light_position , light_normal, polygonal_light_pdfw);
 				break;
 			case DYNLIGHT_SPOT:
-				pos_on_light_polygonal = sample_projected_spotlight(position, light.positions, light_position , light_normal, polygonal_light_pdfw);
+				pos_on_light_polygonal = sample_projected_spotlight(position, light_style, light.positions, light_position , light_normal, polygonal_light_pdfw);
 				break;
 		}
 		

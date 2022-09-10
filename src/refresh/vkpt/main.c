@@ -242,9 +242,14 @@ static VkExtent2D get_screen_image_extent()
 	VkExtent2D result;
 	if (cvar_drs_enable->integer)
 	{
-		int drs_maxscale = max(cvar_drs_minscale->integer, cvar_drs_maxscale->integer);
-		result.width = (uint32_t)(qvk.extent_unscaled.width * (float)drs_maxscale / 100.f);
-		result.height = (uint32_t)(qvk.extent_unscaled.height * (float)drs_maxscale / 100.f);
+		int image_scale = max(cvar_drs_minscale->integer, cvar_drs_maxscale->integer);
+
+		// In case FSR enable we'll always upscale to 100% and thus need at least the unscaled extent
+		if(vkpt_fsr_is_enabled())
+			image_scale = max(image_scale, 100);
+
+		result.width = (uint32_t)(qvk.extent_unscaled.width * (float)image_scale / 100.f);
+		result.height = (uint32_t)(qvk.extent_unscaled.height * (float)image_scale / 100.f);
 	}
 	else
 	{
@@ -1648,6 +1653,23 @@ static void fill_model_instance(ModelInstance* instance, const entity_t* entity,
 		instance->material |= MATERIAL_FLAG_LIGHT;
 }
 
+static void add_dlight_spot(const dlight_t* light, DynLightData* dynlight_data)
+{
+	// Copy spot data
+	VectorCopy(light->spot.direction, dynlight_data->spot_direction);
+	switch(light->spot.emission_profile)
+	{
+	case DLIGHT_SPOT_EMISSION_PROFILE_FALLOFF:
+		dynlight_data->type |= DYNLIGHT_SPOT_EMISSION_PROFILE_FALLOFF << 16;
+		dynlight_data->spot_data = floatToHalf(light->spot.cos_total_width) | (floatToHalf(light->spot.cos_falloff_start) << 16);
+		break;
+	case DLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE:
+		dynlight_data->type |= DYNLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE << 16;
+		dynlight_data->spot_data = floatToHalf(light->spot.total_width) | (light->spot.texture << 16);
+		break;
+	}
+}
+
 static void
 add_dlights(const dlight_t* dlights, int num_dlights, light_poly_t* light_list, int* num_lights, int max_lights, bsp_t *bsp, int* light_entity_ids)
 {
@@ -1667,8 +1689,6 @@ add_dlights(const dlight_t* dlights, int num_dlights, light_poly_t* light_list, 
 		
 		if(light->cluster >= 0) 
 		{
-			//Super wasteful but we want to have all lights in the same list.
-
 			VectorCopy(dlight->origin, light->positions + 0);
 			VectorScale(dlight->color, dlight->intensity / 25.f, light->color);
 			light->positions[3] = dlight->radius;
@@ -1682,17 +1702,27 @@ add_dlights(const dlight_t* dlights, int num_dlights, light_poly_t* light_list, 
 					break;
 				case DLIGHT_SPOT:
 					light->type = DYNLIGHT_SPOT;
-					// Copy spot data
 					VectorCopy(dlight->spot.direction, light->positions + 6);
-					light->positions[4] = dlight->spot.cos_total_width;
-					light->positions[5] = dlight->spot.cos_falloff_start;
+					
+					// Copy spot data
+					if(dlight->spot.emission_profile == DLIGHT_SPOT_EMISSION_PROFILE_FALLOFF)
+					{
+						light->type |= DYNLIGHT_SPOT_EMISSION_PROFILE_FALLOFF << 4;
+						light->positions[4] = dlight->spot.cos_total_width;
+						light->positions[5] = dlight->spot.cos_falloff_start;
+					} 
+					else 
+					{
+						light->type |= DYNLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE << 4;
+						light->positions[4] = dlight->spot.total_width;
+						light->positions[5] = *((float*)&dlight->spot.texture);
+					}
 					hash.model = 0xFD;
 					break;
 			}
 			
 			light_entity_ids[(*num_lights)] = *(uint32_t*)&hash;
 			(*num_lights)++;
-			
 		}
 	}
 }
@@ -4119,6 +4149,11 @@ R_BeginRegistration_RTX(const char *name)
 	int ret = BSP_Load(bsp_path, &bsp);
 	if(!bsp) {
 		Com_Error(ERR_DROP, "%s: couldn't load %s: %s", __func__, bsp_path, Q_ErrorString(ret));
+	}
+	if (!bsp->vis) {
+		Hunk_Free(&bsp->hunk);
+		Z_Free(bsp);
+		Com_Error(ERR_DROP, "BSP not vis'd; this is required for Q2RTX.");
 	}
 	bsp_world_model = bsp;
 	bsp_mesh_register_textures(bsp);
