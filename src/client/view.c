@@ -246,8 +246,7 @@ void V_Flashlight(void)
         VectorMA(light_pos, leftright, right_dir, light_pos);
         VectorMA(light_pos, -8, up_dir, light_pos);
 
-        //V_AddSpotLightTexEmission(light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex);
-        V_AddSpotLight(light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 30.f, 15.f);
+        V_AddSpotLightTexEmission(light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex);
     } else {
         // Flashlight is VKPT only
     }
