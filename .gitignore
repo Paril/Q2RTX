@@ -2,6 +2,11 @@
 .q2pro/
 .q2proded/
 .baseq2/
+baseq2/players/
+baseq2/video/
+baseq2/*pkz
+baseq2/*.pak
+baseq2/maps.lst
 q2rtx
 q2rtxded
 nac

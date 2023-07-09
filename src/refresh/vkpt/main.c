@@ -123,7 +123,7 @@ int num_accumulated_frames = 0;
 
 static bool frame_ready = false;
 
-static float sky_rotation = 0.f;
+static float requested_sky_rotation = 0.f;
 static vec3_t sky_axis = { 0.f };
 
 #define NUM_TAA_SAMPLES 128
@@ -1842,19 +1842,25 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 	mi->alpha = (entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.f;
 	mi->render_buffer_idx = VERTEX_BUFFER_WORLD;
 	mi->render_prim_offset = model->geometry.prim_offsets[0];
-	
-	instance_model_lights(model->num_light_polys, model->light_polys, transform);
 
+	instance_model_lights(model->num_light_polys, model->light_polys, transform);
+	
 	if (model->geometry.accel)
 	{
-		vkpt_pt_instance_model_blas(&model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, (mi->alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0);
+
+		uint32_t override_masks = (mi->alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0;
+		
+		if (entity->flags& RF_NOSHADOW)
+			override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
+
+		vkpt_pt_instance_model_blas(&model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, override_masks);
 	}
 
 	if (!model->transparent)
 	{
 		vkpt_shadow_map_add_instance(transform, qvk.buf_world.buffer, vkpt_refdef.bsp_mesh_world.vertex_data_offset
 			+ mi->render_prim_offset * sizeof(prim_positions_t), mi->prim_count);
-	}
+    }
 
 	(*instance_count)++;
 }
@@ -1906,7 +1912,7 @@ static void process_regular_entity(
 	refdef_t *fd)
 {
 	InstanceBuffer* uniform_instance_buffer = &vkpt_refdef.uniform_instance_buffer;
-
+	
 	float transform[16];
 	create_entity_matrix(transform, entity, is_viewer_weapon);
 	
@@ -2042,7 +2048,7 @@ static void process_regular_entity(
 			geom = &vbo->geom_transparent;
 		else
 			geom = &vbo->geom_opaque;
-		
+
 		if (geom->accel)
 		{
 			// ugly typecast
@@ -2051,7 +2057,12 @@ static void process_regular_entity(
 
 			uint32_t model_index = (uint32_t)(model - r_models);
 
-			vkpt_pt_instance_model_blas(geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, (alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0);
+			uint32_t override_masks = (alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0;
+
+			if(entity->flags & RF_NOSHADOW)
+				override_masks |=  AS_FLAG_OPAQUE_NO_SHADOW;
+
+			vkpt_pt_instance_model_blas(geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, override_masks);
 		}
 	}
 
@@ -2644,9 +2655,20 @@ evaluate_taa_settings(const reference_mode_t* ref_mode)
 static void
 prepare_sky_matrix(float time, vec3_t sky_matrix[3])
 {
-	if (sky_rotation != 0.f)
+	// check if user wants to rotate the sky
+	cvar_t* sky_rotation = Cvar_Get("physical_sky_rotate", "0", 0); // cvar defined in physical_sky.c
+	cvar_t* sky_orientation = Cvar_Get("physical_sky_orientation", "0.0", 0); // cvar defined in physical_sky.c
+
+	if(sky_rotation->value != -1.0f) // -1.0f means "use the value from the map"
+		requested_sky_rotation = sky_rotation->value;
+
+	if (requested_sky_rotation != 0.f)
 	{
-		SetupRotationMatrix(sky_matrix, sky_axis, time * sky_rotation);
+		SetupRotationMatrix(sky_matrix, sky_axis, time * requested_sky_rotation);
+	}
+	else if(sky_orientation->value != 0.0)
+	{
+		SetupRotationMatrix(sky_matrix, sky_axis, sky_orientation->value); // set the default orientation
 	}
 	else
 	{
@@ -4136,7 +4158,7 @@ R_SetSky(const char *name, float rotate, const vec3_t axis)
 
 	byte *data = NULL;
 
-	sky_rotation = rotate;
+	requested_sky_rotation = rotate;
 	VectorNormalize2(axis, sky_axis);
 
 	int avg_color[3] = { 0 };

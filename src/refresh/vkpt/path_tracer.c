@@ -750,7 +750,7 @@ void vkpt_pt_instance_model_blas(const model_geometry_t* geom, const mat4 transf
 {
 	if (!geom->accel)
 		return;
-
+	
 	QvkGeometryInstance_t gpu_instance = {
 		.transform = { // transpose the matrix
 			transform[0][0], transform[1][0], transform[2][0], transform[3][0],

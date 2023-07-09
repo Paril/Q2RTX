@@ -74,7 +74,7 @@ struct PlanetInfo {
 	uint  albedoMap;
 	uint  normalMap;
 }  planet = {
-    vec3(-1.0, 0.0, 0.0), // position
+    vec3(-1.5, 0.0, 0.0), // position
 	0.4,                  // outerRadius
 	0.01,                 // atmosphericRadius
 	0.945,                // radiusRatio
@@ -215,10 +215,10 @@ vec4 integratePlanet(SunInfo sun, PlanetInfo planet, vec3 dirView) {
     vec2 fPlanetNearFar; 
     vec2 fAtmosphereNearFar;
 
-	bool bPlanetIntersection = false; // re-comment to re-enable planet rendering, we should make this a cvar - N&C
-    bool bAtmosphereIntersection = false; // re-comment to re-enable planet rendering, we should make this a cvar - N&C
-    // bool bPlanetIntersection = intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar); // un-comment to renable planet rendering, we should make this a cvar - N&C
-    // bool bAtmosphereIntersection = intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar); // un-comment to renable planet rendering, we should make this a cvar - N&C
+	const int draw_planet = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_PLANET;
+
+    bool bPlanetIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar) : false;
+    bool bAtmosphereIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar) : false;
 
     if (bPlanetIntersection) {
 
@@ -365,8 +365,14 @@ void main() {
 
 	radiance = 0.1 * pow(skybox, vec3(2.2));
 
+    const int draw_sun = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_SUN;
+
 	// sun disk
 	vec3 sun_direct_radiance = global_ubo.sun_color;
+
+    if(draw_sun != 0) // if we want to draw the sun then we need to calculate the direct radiance
+        sun_direct_radiance /= global_ubo.sun_solid_angle; // falls off as sun_angle is bigger
+
     sun_direct_radiance *= pow(clamp((dot(eyeVec, sun.direction) - global_ubo.sun_cos_half_angle) * 1000 + 0.5, 0, 1), 10) / global_ubo.sun_solid_angle;
 
 	radiance += sun_direct_radiance;
@@ -374,7 +380,8 @@ void main() {
 	// planet
 	planet.albedoMap = global_ubo.planet_albedo_map;
 	planet.normalMap = global_ubo.planet_normal_map;
-	
+	planet.outerRadius = global_ubo.planet_radius;
+	planet.position = global_ubo.planet_position;
 	vec4 planet_color = integratePlanet(sun, planet, eyeVec);
 	radiance = mix(radiance, planet_color.rgb, planet_color.a);
 
@@ -384,6 +391,20 @@ void main() {
         float pixel_solid_angle = 1.0 / float(hres * hres);
         vec2 frac_pos = fpos.xy / hres;
         pixel_solid_angle /= sqrt((1 + frac_pos.x * frac_pos.x) * (1 + frac_pos.y * frac_pos.y));
+
+		if(global_ubo.sun_surface_map != -1)
+        {
+            // create orthonormal basis for sun
+            const vec3 up = vec3(0,1,0);
+            const vec3 sun_x = normalize(cross(sun.direction, up));
+            const vec3 sun_y = normalize(cross(sun_x, sun.direction));
+        
+            // project texture to sun disk
+            vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) * global_ubo.sun_surface_map_scale;
+            sun_uv = sun_uv * 0.5 + 0.5;
+
+            radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
+         }
 
         atomicAdd(sun_color_buffer.accum_sun_color.r, int(radiance.r * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
         atomicAdd(sun_color_buffer.accum_sun_color.g, int(radiance.g * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));

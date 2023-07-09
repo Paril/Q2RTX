@@ -344,7 +344,7 @@ void main() {
     sun.direction = normalize(global_ubo.sun_direction_envmap);
     sun.color     = global_ubo.sun_color;
     sun.intensity = 1.0f;
-    
+
     // Data needed from terrain raymarcher
     vec4 TerrainAlbedo = vec4(0,0,0,0);
     vec3 TerrainWorldPos = vec3(0,0,0);
@@ -382,12 +382,16 @@ void main() {
 
         vec3 radiance = GetSkyRadiance(SkyParams, TEX_SKY_TRANSMITTANCE, TEX_SKY_SCATTERING, camera, eyeVec.xyz, sun.direction, sun_transmittance);
         vec3 sun_direct_radiance = sun_transmittance;
+	    
+        const int draw_sun = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_SUN;
 
-        sun_direct_radiance /= global_ubo.sun_solid_angle;
+        if(draw_sun != 0) // if we want to draw the sun then we need to calculate the direct radiance
+            sun_direct_radiance /= global_ubo.sun_solid_angle; // falls off as sun_angle is bigger
+
         sun_direct_radiance *= pow(clamp((dot(eyeVec, sun.direction) - global_ubo.sun_cos_half_angle) * 1000 + 0.875, 0, 1), 10);
         
         radiance += sun_direct_radiance;
-
+		
         float CloudsVisible = dot(normalize(camera), eyeVec);
         if (CloudsVisible > -0.02 && drawClouds()) 
         {
@@ -409,12 +413,25 @@ void main() {
 
         radiance *= global_ubo.sun_color;
 
-        if(luminance(sun_direct_radiance) > 0)
+        if(luminance(sun_direct_radiance) > 0.5 && draw_sun != 0) // luminance threshold is 0.5 because with sun surface maps, the texture goes beyond the sun
         {
             float pixel_solid_angle = 1.0 / float(hres * hres);
             vec2 frac_pos = fpos.xy / hres;
             pixel_solid_angle /= sqrt((1 + frac_pos.x * frac_pos.x) * (1 + frac_pos.y * frac_pos.y));
 
+            if(global_ubo.sun_surface_map != -1)
+            {
+                // create orthonormal basis for sun
+                const vec3 up = vec3(0,1,0);
+                const vec3 sun_x = normalize(cross(sun.direction, up));
+                const vec3 sun_y = normalize(cross(sun_x, sun.direction));
+        
+                // project texture to sun disk
+                vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) * global_ubo.sun_surface_map_scale;
+                sun_uv = sun_uv * 0.5 + 0.5;
+
+                radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
+            }
             atomicAdd(sun_color_buffer.accum_sun_color.r, int(radiance.r * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
             atomicAdd(sun_color_buffer.accum_sun_color.g, int(radiance.g * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
             atomicAdd(sun_color_buffer.accum_sun_color.b, int(radiance.b * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));

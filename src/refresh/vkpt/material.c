@@ -201,6 +201,7 @@ static struct MaterialKind {
 	{"INVISIBLE", MATERIAL_KIND_INVISIBLE},
 	{"SCREEN", MATERIAL_KIND_SCREEN},
 	{"CAMERA", MATERIAL_KIND_CAMERA},
+	{"UNLIT", MATERIAL_KIND_UNLIT},
 };
 
 static int nMaterialKinds = sizeof(materialKinds) / sizeof(struct MaterialKind);
@@ -210,6 +211,7 @@ static uint32_t getMaterialKind(const char * kindname)
 	for (int i = 0; i < nMaterialKinds; ++i)
 		if (Q_stricmp(kindname, materialKinds[i].name) == 0)
 			return materialKinds[i].flag;
+	
 	return MATERIAL_KIND_REGULAR;
 }
 
