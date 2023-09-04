@@ -676,7 +676,7 @@ vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent2D extent
 	IMAGE_BARRIER(cmd_buf,
 		.image = image,
 		.subresourceRange = subresource_range,
-		.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+		.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
 		.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
 		.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
 		.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL

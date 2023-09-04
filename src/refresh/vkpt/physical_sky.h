@@ -59,6 +59,9 @@ typedef struct PhysicalSkyDesc {
 PhysicalSkyDesc_t const * GetSkyPreset(uint16_t index);
 
 void CalculateDirectionToSun(float DayOfYear, float TimeOfDay, float LatitudeDegrees, vec3_t result);
+void ConvertSphericalToCartesian(const vec2_t spherical, vec3_t result);
+float ConvertAngleToRadians(float angle);
+
 
 #endif // __PHYSICAL_SKY__
 

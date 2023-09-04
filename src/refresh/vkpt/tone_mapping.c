@@ -48,7 +48,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 //   VkResult vkpt_tone_mapping_record_cmd_buffer(VkCommandBuffer cmd_buf,
 // float frame_time) - records the commands to apply tone mapping to the
-// VKPT_IMG_TAA_OUTPUT image in-place, given the time between this frame and
+// VKPT_IMG_POST_PROCESS_INPUT image in-place, given the time between this frame and
 // the previous frame.
 //   
 // ========================================================================= //
@@ -267,7 +267,7 @@ vkpt_tone_mapping_record_cmd_buffer(VkCommandBuffer cmd_buf, float frame_time)
 		qvk_get_current_desc_set_textures(),
 		qvk.desc_set_vertex_buffer
 	};
-	BARRIER_COMPUTE(cmd_buf, qvk.images[VKPT_IMG_TAA_OUTPUT]);
+	BARRIER_COMPUTE(cmd_buf, qvk.images[VKPT_IMG_POST_PROCESS_INPUT]);
 
 
 	// Record instructions to run the compute shader that updates the histogram.
@@ -405,10 +405,10 @@ vkpt_tone_mapping_record_cmd_buffer(VkCommandBuffer cmd_buf, float frame_time)
 		(qvk.extent_taa_output.height + 15) / 16,
 		1);
 
-	// Because VKPT_IMG_TAA_OUTPUT changed, we make sure to wait for the image
+	// Because VKPT_IMG_POST_PROCESS_INPUT changed, we make sure to wait for the image
 	// to be written before continuing. This could be ensured in several
 	// other ways as well.
-	BARRIER_COMPUTE(cmd_buf, qvk.images[VKPT_IMG_TAA_OUTPUT]);
+	BARRIER_COMPUTE(cmd_buf, qvk.images[VKPT_IMG_POST_PROCESS_INPUT]); 
 
 	reset_required = 0;
 

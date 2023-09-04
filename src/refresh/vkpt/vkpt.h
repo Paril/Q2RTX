@@ -88,6 +88,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	SHADER_MODULE_DO(QVK_MOD_TONE_MAPPING_HISTOGRAM_COMP)            \
 	SHADER_MODULE_DO(QVK_MOD_TONE_MAPPING_CURVE_COMP)                \
 	SHADER_MODULE_DO(QVK_MOD_TONE_MAPPING_APPLY_COMP)                \
+	SHADER_MODULE_DO(QVK_MOD_POST_PROCESS_COMP)                      \
 	SHADER_MODULE_DO(QVK_MOD_PHYSICAL_SKY_COMP)                      \
 	SHADER_MODULE_DO(QVK_MOD_PHYSICAL_SKY_SPACE_COMP)                \
 	SHADER_MODULE_DO(QVK_MOD_SKY_BUFFER_RESOLVE_COMP)                \
@@ -696,6 +697,12 @@ VkResult vkpt_tone_mapping_destroy_pipelines(void);
 VkResult vkpt_tone_mapping_record_cmd_buffer(VkCommandBuffer cmd_buf, float frame_time);
 void vkpt_tone_mapping_request_reset(void);
 void vkpt_tone_mapping_draw_debug(void);
+
+VkResult vkpt_postprocess_initialize(void);
+VkResult vkpt_postprocess_destroy(void);
+VkResult vkpt_postprocess_destroy_pipeline(void);
+VkResult vkpt_postprocess_create_pipelines(void);
+VkResult vkpt_postprocess_record_cmd_buffer(VkCommandBuffer cmd_buf);
 
 VkResult vkpt_shadow_map_initialize(void);
 VkResult vkpt_shadow_map_destroy(void);

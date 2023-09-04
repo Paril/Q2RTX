@@ -221,5 +221,5 @@ void main()
     }
 
     // Write out to image:
-    imageStore(IMG_TAA_OUTPUT, ipos, vec4(mapped_color, 0));
+    imageStore(IMG_POST_PROCESS_INPUT, ipos, vec4(mapped_color, 0));
 }

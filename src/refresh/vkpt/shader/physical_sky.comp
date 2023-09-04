@@ -373,8 +373,11 @@ void main() {
     // sky
 
     bool is_direct_sunlight = false;
+
+    const int draw_sun = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_SUN;
     
     const float TerrainSizeMultiplier = 0.0;
+
     if (TerrainWorldPos.x == 0 && TerrainWorldPos.y == 0 && TerrainWorldPos.z == 0)
     {
         vec3 camera = vec3(0,0,6360.1);
@@ -390,7 +393,12 @@ void main() {
 
         sun_direct_radiance *= pow(clamp((dot(eyeVec, sun.direction) - global_ubo.sun_cos_half_angle) * 1000 + 0.875, 0, 1), 10);
         
+        // sun_render cvar, 0 = off, 1 = on. This is a toggle to make the sun disc visible in the sky.
+        // This one is "we don't want the sun disc"
+        vec3 out_radiance = (draw_sun != 0 ? sun_direct_radiance : vec3(0,0,0)) + radiance;
+
         radiance += sun_direct_radiance;
+
 		
         float CloudsVisible = dot(normalize(camera), eyeVec);
         if (CloudsVisible > -0.02 && drawClouds()) 
@@ -409,9 +417,11 @@ void main() {
             color.xyz = color.xyz * ground_transmittance + radiance_to_point;
 
             radiance = mix(color.xyz,radiance, color.w);
+            out_radiance = mix(color.xyz,out_radiance, color.w);
         }
 
         radiance *= global_ubo.sun_color;
+        out_radiance *= global_ubo.sun_color;
 
         if(luminance(sun_direct_radiance) > 0.5 && draw_sun != 0) // luminance threshold is 0.5 because with sun surface maps, the texture goes beyond the sun
         {
@@ -427,10 +437,11 @@ void main() {
                 const vec3 sun_y = normalize(cross(sun_x, sun.direction));
         
                 // project texture to sun disk
-                vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) * global_ubo.sun_surface_map_scale;
+                vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) / global_ubo.sun_surface_map_scale;
                 sun_uv = sun_uv * 0.5 + 0.5;
 
                 radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
+                out_radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
             }
             atomicAdd(sun_color_buffer.accum_sun_color.r, int(radiance.r * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
             atomicAdd(sun_color_buffer.accum_sun_color.g, int(radiance.g * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
@@ -439,7 +450,7 @@ void main() {
             is_direct_sunlight = true;
         }
 
-        out_color = vec4(radiance, 1);
+        out_color = vec4(out_radiance, 1);
     }
     else
     {
@@ -474,6 +485,6 @@ void main() {
         atomicAdd(sun_color_buffer.accum_sky_color.b, int(out_color.b * SKY_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
         atomicAdd(sun_color_buffer.accum_sky_color.a, 1);
     }
-
+    
     imageStore(IMG_PHYSICAL_SKY, ipos, out_color);
 }

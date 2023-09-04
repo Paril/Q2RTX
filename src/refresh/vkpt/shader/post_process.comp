@@ -1,0 +1,53 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "utils.glsl"
+
+#define GLOBAL_UBO_DESC_SET_IDX 0
+#include "global_ubo.h"
+
+#define GLOBAL_TEXTURES_DESC_SET_IDX 1
+#include "global_textures.h"
+
+#define PI 3.1415926535897932384626433832795
+
+// Process the image in 16x16x1 workgroups.
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+
+void main()
+{
+    ivec2 ipos = ivec2(gl_GlobalInvocationID);
+    const ivec2 screenSize = ivec2(global_ubo.taa_output_width, global_ubo.taa_output_height);
+
+    if(any(greaterThanEqual(ipos, screenSize)))
+        return;
+
+    const ivec2 opos = ipos;
+
+
+
+    // Check if we are in water, if so, distort the UVs that we use for ray direction
+    if(global_ubo.enable_underwater_warp == 1 && global_ubo.medium == MEDIUM_WATER)
+    {
+        const float speed = 1;
+        const float scale = 7.5;
+
+        vec2 uv = vec2(ipos) / vec2(screenSize);
+
+        const float border_strength = sin(uv.x * PI) * sin(uv.y * PI); // 0.0 to 1.0 depending on position in screen
+
+        uv.x += (sin(uv.y + global_ubo.time * speed) * border_strength) / scale;
+
+        ipos.x = int(uv.x * float(screenSize.x));
+
+        ipos.x = clamp(ipos.x, 0, screenSize.x - 1);
+    }
+
+    // Get input color and luminance.
+    vec3 input_color = imageLoad(IMG_POST_PROCESS_INPUT, ipos).rgb;
+
+    imageStore(IMG_TAA_OUTPUT, opos, vec4(input_color, 0));
+
+}

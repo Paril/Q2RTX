@@ -241,6 +241,7 @@ SET(SRC_VKPT
 	refresh/vkpt/shadow_map.c
 	refresh/vkpt/textures.c
 	refresh/vkpt/tone_mapping.c
+	refresh/vkpt/post_process.c
 	refresh/vkpt/transparency.c
 	refresh/vkpt/uniform_buffer.c
 	refresh/vkpt/vertex_buffer.c
@@ -285,6 +286,7 @@ set(SRC_SHADERS
 	refresh/vkpt/shader/tone_mapping_histogram.comp
 	refresh/vkpt/shader/tone_mapping_curve.comp
     refresh/vkpt/shader/tone_mapping_apply.comp
+    refresh/vkpt/shader/post_process.comp
 	refresh/vkpt/shader/physical_sky.comp
 	refresh/vkpt/shader/physical_sky_space.comp
 	refresh/vkpt/shader/shadow_map.vert

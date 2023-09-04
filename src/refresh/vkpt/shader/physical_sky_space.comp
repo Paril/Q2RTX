@@ -220,6 +220,9 @@ vec4 integratePlanet(SunInfo sun, PlanetInfo planet, vec3 dirView) {
     bool bPlanetIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar) : false;
     bool bAtmosphereIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar) : false;
 
+    bool bPlanetIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar) : false;
+    bool bAtmosphereIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar) : false;
+
     if (bPlanetIntersection) {
 
 	    const float fFar = fPlanetNearFar.x;
@@ -356,6 +359,8 @@ void main() {
 	sun.cos_half_angle = global_ubo.sun_cos_half_angle;
 
 	bool is_direct_sunlight = true;
+    
+	const int draw_sun = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_SUN;
 
 	vec3 radiance = vec3(0);
 
@@ -375,6 +380,9 @@ void main() {
 
     sun_direct_radiance *= pow(clamp((dot(eyeVec, sun.direction) - global_ubo.sun_cos_half_angle) * 1000 + 0.5, 0, 1), 10) / global_ubo.sun_solid_angle;
 
+	// sun_render cvar, 0 = off, 1 = on. This is a toggle to make the sun disc visible in the sky.
+    // This one is "we don't want the sun disc"
+    vec3 out_radiance = (draw_sun != 0 ? sun_direct_radiance : vec3(0,0,0)) + radiance;
 	radiance += sun_direct_radiance;
 
 	// planet
@@ -384,6 +392,7 @@ void main() {
 	planet.position = global_ubo.planet_position;
 	vec4 planet_color = integratePlanet(sun, planet, eyeVec);
 	radiance = mix(radiance, planet_color.rgb, planet_color.a);
+	out_radiance = mix(out_radiance, planet_color.rgb, planet_color.a);
 
 	// export sun radiance
 
@@ -400,10 +409,11 @@ void main() {
             const vec3 sun_y = normalize(cross(sun_x, sun.direction));
         
             // project texture to sun disk
-            vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) * global_ubo.sun_surface_map_scale;
+            vec2 sun_uv = vec2(dot(sun_x, eyeVec), dot(sun_y, eyeVec)) / global_ubo.sun_surface_map_scale;
             sun_uv = sun_uv * 0.5 + 0.5;
 
             radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
+			out_radiance *= vec3(global_textureLod(global_ubo.sun_surface_map, sun_uv, 0));
          }
 
         atomicAdd(sun_color_buffer.accum_sun_color.r, int(radiance.r * pixel_solid_angle * SUN_COLOR_ACCUMULATOR_FIXED_POINT_SCALE));
@@ -413,7 +423,7 @@ void main() {
         is_direct_sunlight = true;
     }
 	
-	out_color = vec4(radiance, 1);
+	out_color = vec4(out_radiance, 1);
 
     if(!is_direct_sunlight && (ipos.x & 31) == 15 && (ipos.y & 31) == 15)
     {

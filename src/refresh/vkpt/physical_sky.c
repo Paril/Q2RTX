@@ -58,7 +58,22 @@ cvar_t *sun_surface_map_scale;
 cvar_t *physical_sky;
 cvar_t *physical_sky_rotate;
 cvar_t *physical_sky_orientation;
+
 cvar_t *physical_sky_draw_clouds;
+cvar_t *physical_sky_cloud_overlay;
+cvar_t *physical_sky_cloud_overlay_height;
+
+cvar_t* physical_sky_cloud_overlay_texture0;
+cvar_t* physical_sky_cloud_overlay_texture1;
+
+cvar_t *physical_sky_cloud_overlay_speed0;
+cvar_t *physical_sky_cloud_overlay_scale0;
+cvar_t *physical_sky_cloud_overlay_direction0;
+cvar_t *physical_sky_cloud_overlay_speed1;
+cvar_t *physical_sky_cloud_overlay_scale1;
+cvar_t *physical_sky_cloud_overlay_direction1;
+
+
 cvar_t *physical_sky_space;
 cvar_t *physical_sky_brightness;
 cvar_t *physical_sky_sun_texture;
@@ -66,7 +81,9 @@ cvar_t *physical_sky_sun_texture;
 cvar_t *physical_sky_planet_radius;
 cvar_t *physical_sky_planet_render;
 cvar_t *physical_sky_planet_texture;
-cvar_t *physical_sky_planet_position[3];
+
+cvar_t *physical_sky_planet_azimuth;
+cvar_t *physical_sky_planet_elevation;
 
 cvar_t *sky_scattering;
 cvar_t *sky_transmittance;
@@ -77,6 +94,9 @@ static uint32_t physical_sky_planet_albedo_map = 0;
 static uint32_t physical_sky_planet_normal_map = 0;
 
 static uint32_t physical_sky_sun_surface_map = 0;
+
+static uint32_t physical_sky_cloud_overlay_map0 = 0;
+static uint32_t physical_sky_cloud_overlay_map1 = 0;
 
 static time_t latched_local_time;
 
@@ -363,8 +383,8 @@ vkpt_physical_sky_endRegistration()
 		char planet_albedo_path[64];
 		char planet_normal_path[64];
 		// null terminate
-		planet_albedo_path[0] = "\0";
-		planet_normal_path[0] = "\0";
+		planet_albedo_path[0] = '\0';
+		planet_normal_path[0] = '\0';
 
 		{
 			strcpy(planet_albedo_path, "env/"); // first has to be strcpy
@@ -377,30 +397,50 @@ vkpt_physical_sky_endRegistration()
 		}
 
         image_t const * albedo_map = IMG_Find(planet_albedo_path, IT_SKIN, IF_SRGB);
-        if (albedo_map != R_NOTEXTURE) {
+        if (albedo_map != R_NOTEXTURE)
             physical_sky_planet_albedo_map = albedo_map - r_images;
-        }
 
         image_t const * normal_map = IMG_Find(planet_normal_path, IT_SKIN, IF_SRGB);
-        if (normal_map != R_NOTEXTURE) {
+        if (normal_map != R_NOTEXTURE)
             physical_sky_planet_normal_map = normal_map - r_images;
-        }
     }
-	char sun_surface_path[64];
-	sun_surface_path[0] = "\0";
+	// load sun surface map
+	char file_path[64];
+	file_path[0] = '\0';
 
-	strcpy(sun_surface_path, "env/");
-	strcat(sun_surface_path, physical_sky_sun_texture->string);
-	strcat(sun_surface_path, ".tga");
+	strcpy(file_path, "env/");
+	strcat(file_path, physical_sky_sun_texture->string);
+	strcat(file_path, ".tga");
 
 	if (physical_sky->integer > 0 || physical_sky_space->integer > 0)
 	{
-		image_t const * sun_surface_map = IMG_Find(sun_surface_path, IT_SKIN, IF_SRGB);
-		if (sun_surface_map != R_NOTEXTURE) {
+		image_t const * sun_surface_map = IMG_Find(file_path, IT_SKIN, IF_SRGB);
+		if (sun_surface_map != R_NOTEXTURE)
 			physical_sky_sun_surface_map = sun_surface_map - r_images;
-		}
 
+
+		// cloud overlay map1
+		file_path[0] = '\0';
+		strcat(file_path, physical_sky_cloud_overlay_texture0->string);
+		strcat(file_path, ".tga");
+		image_t const * overlay_cloud_map0 = IMG_Find(file_path, IT_SKIN, IF_SRGB);
+
+		if (overlay_cloud_map0 != R_NOTEXTURE)
+			physical_sky_cloud_overlay_map0 = overlay_cloud_map0 - r_images;
+
+		// cloud overlay map2
+		file_path[0] = '\0';
+		strcat(file_path, physical_sky_cloud_overlay_texture1->string);
+		strcat(file_path, ".tga");
+
+		image_t const* overlay_cloud_map1 = IMG_Find(file_path, IT_SKIN, IF_SRGB);
+
+		if(overlay_cloud_map1 != R_NOTEXTURE)
+			physical_sky_cloud_overlay_map1 = overlay_cloud_map1 - r_images;
 	}
+
+
+
     return VK_SUCCESS;
 }
 
@@ -816,11 +856,11 @@ vkpt_evaluate_sun_light(sun_light_t* light, const vec3_t sky_matrix[3], float ti
 }
 
 VkResult
-vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light, bool render_world)
+vkpt_physical_sky_update_ubo(QVKUniformBuffer_t* ubo, const sun_light_t* light, bool render_world)
 {
-    PhysicalSkyDesc_t const * skyDesc = GetSkyPreset(physical_sky->integer);
+	PhysicalSkyDesc_t const* skyDesc = GetSkyPreset(physical_sky->integer);
 
-	if(physical_sky_space->integer)
+	if (physical_sky_space->integer)
 		ubo->pt_env_scale = 0.3f;
 	else
 	{
@@ -831,14 +871,14 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light,
 		ubo->pt_env_scale = exp2f(brightness - 2.f);
 	}
 
-    // sun
+	// sun
 
-    ubo->sun_bounce_scale = sun_bounce->value;
+	ubo->sun_bounce_scale = sun_bounce->value;
 	ubo->sun_tan_half_angle = tanf(light->angular_size_rad * 0.5f);
 	ubo->sun_cos_half_angle = cosf(light->angular_size_rad * 0.5f);
 	ubo->sun_solid_angle = 2 * M_PI * (float)(1.0 - cos(light->angular_size_rad * 0.5)); // use double for precision
 
-	if(sun_surface_map_render->integer)
+	if (sun_surface_map_render->integer)
 		ubo->sun_surface_map = physical_sky_sun_surface_map; // the texture map for the sun
 	else
 		ubo->sun_surface_map = -1; // no texture map for the sun
@@ -851,28 +891,28 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light,
 	VectorCopy(light->direction_envmap, ubo->sun_direction_envmap);
 	VectorCopy(light->direction, ubo->sun_direction);
 
-    if (light->direction[2] >= 0.99f)
-    {
-        VectorSet(ubo->sun_tangent, 1.f, 0.f, 0.f);
-        VectorSet(ubo->sun_bitangent, 0.f, 1.f, 0.f);
-    }
-    else
-    {
-        vec3_t up;
-        VectorSet(up, 0.f, 0.f, 1.f);
-        CrossProduct(light->direction, up, ubo->sun_tangent);
-        VectorNormalize(ubo->sun_tangent);
-        CrossProduct(light->direction, ubo->sun_tangent, ubo->sun_bitangent);
-        VectorNormalize(ubo->sun_bitangent);
-    }
-	// clouds
+	if (light->direction[2] >= 0.99f)
+	{
+		VectorSet(ubo->sun_tangent, 1.f, 0.f, 0.f);
+		VectorSet(ubo->sun_bitangent, 0.f, 1.f, 0.f);
+	}
+	else
+	{
+		vec3_t up;
+		VectorSet(up, 0.f, 0.f, 1.f);
+		CrossProduct(light->direction, up, ubo->sun_tangent);
+		VectorNormalize(ubo->sun_tangent);
+		CrossProduct(light->direction, ubo->sun_tangent, ubo->sun_bitangent);
+		VectorNormalize(ubo->sun_bitangent);
+	}
+	// cloud
 
 	ubo->sky_transmittance = sky_transmittance->value;
 	ubo->sky_phase_g = sky_phase_g->value;
 	ubo->sky_amb_phase_g = sky_amb_phase_g->value;
 	ubo->sky_scattering = sky_scattering->value;
 
-    // atmosphere
+	// atmosphere
 
 	if (!render_world)
 		ubo->environment_type = ENVIRONMENT_NONE;
@@ -881,30 +921,45 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light,
 	else
 		ubo->environment_type = ENVIRONMENT_STATIC;
 
-    if (light->use_physical_sky)
-    {
-        uint32_t flags = skyDesc->flags;
-        // adjust flags from cvars here
+	if (light->use_physical_sky)
+	{
+		uint32_t flags = skyDesc->flags;
+		// adjust flags from cvars here
 
-        if (physical_sky_draw_clouds->value > 0.0f)
-            flags = flags | PHYSICAL_SKY_FLAG_DRAW_CLOUDS;
-        else
-            flags = flags & (~PHYSICAL_SKY_FLAG_DRAW_CLOUDS);
+		if (physical_sky_draw_clouds->value > 0.0f)
+			flags = flags | PHYSICAL_SKY_FLAG_DRAW_CLOUDS;
+		else
+			flags = flags & (~PHYSICAL_SKY_FLAG_DRAW_CLOUDS);
 
-        ubo->physical_sky_flags = flags;
+		if (physical_sky_cloud_overlay->value > 0)
+			flags = flags | PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS;
 
-        // compute approximation of reflected radiance from ground
-        vec3_t ground_radiance;
-        VectorCopy(skyDesc->groundAlbedo, ground_radiance);
-        VectorScale(ground_radiance, max(0.f, light->direction_envmap[2]), ground_radiance); // N.L
-        VectorVectorScale(ground_radiance, light->color, ground_radiance);
+		ubo->physical_sky_flags = flags;
+
+		// compute approximation of reflected radiance from ground
+		vec3_t ground_radiance;
+		VectorCopy(skyDesc->groundAlbedo, ground_radiance);
+		VectorScale(ground_radiance, max(0.f, light->direction_envmap[2]), ground_radiance); // N.L
+		VectorVectorScale(ground_radiance, light->color, ground_radiance);
 
 		VectorCopy(ground_radiance, ubo->physical_sky_ground_radiance);
-    }
+	}
 	else
 		skyNeedsUpdate = VK_FALSE;
 
-    // planet
+	// Cloud Map
+
+	ubo->cloud_overlay_map0 = physical_sky_cloud_overlay_map0;
+	ubo->cloud_overlay_scale0 = physical_sky_cloud_overlay_scale0->value;
+	ubo->cloud_overlay_direction0[0] = cosf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction0->value)) * physical_sky_cloud_overlay_speed0->value;
+	ubo->cloud_overlay_direction0[1] = sinf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction0->value)) * physical_sky_cloud_overlay_speed0->value;
+	ubo->cloud_overlay_map1 = physical_sky_cloud_overlay_map1;
+	ubo->cloud_overlay_scale1 = physical_sky_cloud_overlay_scale1->value;
+	ubo->cloud_overlay_direction1[0] = cosf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction1->value)) * physical_sky_cloud_overlay_speed1->value;
+	ubo->cloud_overlay_direction1[1] = sinf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction1->value)) * physical_sky_cloud_overlay_speed1->value;
+
+
+	// planet
 
     ubo->planet_albedo_map = physical_sky_planet_albedo_map;
     ubo->planet_normal_map = physical_sky_planet_normal_map;
@@ -913,7 +968,12 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light,
 	ubo->physical_sky_flags |= physical_sky_planet_render->integer ? PHYSICAL_SKY_FLAG_DRAW_PLANET : 0x0;
 	ubo->physical_sky_flags |= sun_render->integer ? PHYSICAL_SKY_FLAG_DRAW_SUN : 0x0;
 
-	vec3_t planet_position = { physical_sky_planet_position[0]->value, physical_sky_planet_position[1]->value, physical_sky_planet_position[2]->value };
+	vec3_t planet_position;
+	vec2_t planet_spherical_position = { ConvertAngleToRadians(physical_sky_planet_elevation->value), ConvertAngleToRadians(physical_sky_planet_azimuth->value) };
+
+	// compute planet position	
+	ConvertSphericalToCartesian(planet_spherical_position, planet_position);
+
 	VectorCopy(planet_position, ubo->planet_position);
 
 	ubo->sun_visible = light->visible;
@@ -1014,6 +1074,23 @@ void InitialiseSkyCVars()
     physical_sky_draw_clouds = Cvar_Get("physical_sky_draw_clouds", "1", 0);
     physical_sky_draw_clouds->changed = physical_sky_cvar_changed;
 
+	// Overlay cloud
+
+	physical_sky_cloud_overlay = Cvar_Get("physical_sky_cloud_overlay", "0", 0);
+	physical_sky_cloud_overlay->changed = physical_sky_cvar_changed;
+
+	physical_sky_cloud_overlay_texture0 = Cvar_Get("physical_sky_cloud_overlay_texture0", "", 0);
+	physical_sky_cloud_overlay_texture1 = Cvar_Get("physical_sky_cloud_overlay_texture1", "", 0);
+
+	physical_sky_cloud_overlay_scale0 = Cvar_Get("physical_sky_cloud_overlay_scale0", "50.0", 0);
+	physical_sky_cloud_overlay_scale1 = Cvar_Get("physical_sky_cloud_overlay_scale1", "50.0", 0);
+
+	physical_sky_cloud_overlay_speed0 = Cvar_Get("physical_sky_cloud_overlay_speed0", "0.1", 0);
+	physical_sky_cloud_overlay_speed1 = Cvar_Get("physical_sky_cloud_overlay_speed1", "0.05", 0);
+
+	physical_sky_cloud_overlay_direction0 = Cvar_Get("physical_sky_cloud_overlay_direction0", "0.0", 0);
+	physical_sky_cloud_overlay_direction1 = Cvar_Get("physical_sky_cloud_overlay_direction1", "0.0", 0);
+
     physical_sky_space = Cvar_Get("physical_sky_space", "0", 0);
 	physical_sky_space->changed = physical_sky_cvar_changed;
 
@@ -1030,14 +1107,12 @@ void InitialiseSkyCVars()
 	physical_sky_planet_render = Cvar_Get("planet_render", "1", 0);
 	physical_sky_planet_render->changed = physical_sky_cvar_changed;
 
-	for (int i = 0; i < 3; ++i)
-	{
-		if(i == 0)
-			physical_sky_planet_position[i] = Cvar_Get(va("planet_position_%c", _xyz[i]), "-1.0", 0); // default to left
-		else
-			physical_sky_planet_position[i] = Cvar_Get(va("planet_position_%c", _xyz[i]), "0.0", 0);
-		physical_sky_planet_position[i]->changed = physical_sky_cvar_changed;
-	}
+	physical_sky_planet_azimuth = Cvar_Get("planet_azimuth", "0.0", 0);
+	physical_sky_planet_azimuth->changed = physical_sky_cvar_changed;
+
+	physical_sky_planet_elevation = Cvar_Get("planet_elevation", "0.0", 0);
+	physical_sky_planet_elevation->changed = physical_sky_cvar_changed;
+	
 }
 
 void UpdatePhysicalSkyCVars()
@@ -1146,6 +1221,23 @@ static void quatMult(vec4_t const a, vec4_t const b, vec4_t result)
     result[1] = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2];
     result[2] = a[0] * b[2] + a[2] * b[0] + a[3] * b[1] - a[1] * b[3];
     result[3] = a[0] * b[3] + a[3] * b[0] + a[1] * b[2] - a[2] * b[1];
+}
+
+float ConvertAngleToRadians(float angle)
+{
+	return angle * (M_PI / 180.0f);
+}
+
+
+void ConvertSphericalToCartesian(const vec2_t spherical, vec3_t result)
+{
+	float const sinTheta = sinf(spherical[0]);
+	float const cosTheta = cosf(spherical[0]);
+	float const sinPhi = sinf(spherical[1]);
+	float const cosPhi = cosf(spherical[1]);
+	result[0] = sinTheta * cosPhi;
+	result[1] = sinTheta * sinPhi;
+	result[2] = cosTheta;
 }
 
 void CalculateDirectionToSun(float DayOfYear, float TimeOfDay, float LatitudeDegrees, vec3_t result)

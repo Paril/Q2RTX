@@ -32,6 +32,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "path_tracer_rgen.h"
 #include "projection.glsl"
 
+// Global texture loading
+#include "global_textures.h"
+
+#include "sky.h"
+
+#define OVERLAY_CLOUD_HEIHGT 10
+
 Ray
 get_primary_ray(vec2 screen_pos)
 {
@@ -109,6 +116,21 @@ void generate_rng_seed(ivec2 ipos, bool is_odd_checkerboard)
 	imageStore(IMG_ASVGF_RNG_SEED_A, ipos, uvec4(rng_seed));
 }
 
+// Returns the uv coordinate of the plane
+vec2 intersect_plane(vec3 origin, vec3 direction)
+{
+
+	float t = (OVERLAY_CLOUD_HEIHGT - origin.y) / direction.z;
+	vec3 intersection = origin + t * direction.xzy;
+	return intersection.xz;
+}
+
+vec2 parallax_mapping(vec2 texCoords, float height, vec3 viewDir)
+{ 
+    vec2 p = viewDir.xy / viewDir.z * height;
+    return texCoords - p;    
+} 
+
 void
 main()
 {
@@ -129,16 +151,21 @@ main()
 		// Photo mode or legacy TAA - use higher quality sampling
 		pixel_offset = vec2(get_rng(RNG_PRIMARY_OFF_X), get_rng(RNG_PRIMARY_OFF_Y));
 		pixel_offset -= vec2(0.5);
+
+
 	}
 	else 
 	{
 		// Real-time mode - use predictable sampling for TAAU
 		pixel_offset = global_ubo.sub_pixel_jitter;
 	}
-	
+
+
 	const ivec2 image_position = get_image_position();
 	const vec2 pixel_center = vec2(image_position) + vec2(0.5);
-	const vec2 inUV = (pixel_center + pixel_offset) / vec2(get_image_size());
+	vec2 inUV = (pixel_center + pixel_offset) / vec2(get_image_size());
+
+
 
 	Ray ray = get_primary_ray(inUV);
 
@@ -166,7 +193,7 @@ main()
 		ray.t_max = ray_payload_geometry.hit_distance;
 	 	triangle = get_hit_triangle(ray_payload_geometry);
 	}
-
+	
 	vec4 effects = trace_effects_ray(ray, /* skip_procedural = */ false);
 
 	direction = ray.direction;
@@ -177,7 +204,33 @@ main()
 	{
 		vec3 env = env_map(ray.direction, false);	
 		env *= global_ubo.pt_env_scale;
-		
+
+		float terrain_depth = texture(IMG_TERRAIN_DEPTH, ray.direction.xzy).r;
+		if(((global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS) != 0) && (terrain_depth <= 0.0))
+		{
+			vec2 plane_uv0 = intersect_plane(vec3(0,0,0), ray.direction);
+
+			if(plane_uv0 != vec2(0))
+			{
+				vec2 plane_uv1 = parallax_mapping(plane_uv0, 1, ray.direction); // The top is the only one that needs parallax
+
+				plane_uv1 /= global_ubo.cloud_overlay_scale1;
+				plane_uv0 /= global_ubo.cloud_overlay_scale0;
+
+				plane_uv0 +=  global_ubo.cloud_overlay_direction0 * global_ubo.time; // animate the clouds
+				plane_uv1 += global_ubo.cloud_overlay_direction1 * global_ubo.time;
+
+				vec4 cloud_color0 = global_texture(global_ubo.cloud_overlay_map0, plane_uv0);
+				vec4 cloud_color1 = global_texture(global_ubo.cloud_overlay_map1, plane_uv1);
+				
+				// first layer clouds
+				env = mix(env, cloud_color1.rgb, cloud_color1.a);
+				// second layer clouds
+				env = mix(env, cloud_color0.rgb, cloud_color0.a);
+			}
+		}
+
+
 		vec4 transparent = alpha_blend(effects, vec4(env, 1));
 
 		if(is_readback_pixel)

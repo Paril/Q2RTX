@@ -26,6 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PHYSICAL_SKY_FLAG_DRAW_CLOUDS     (1 << 2)
 #define PHYSICAL_SKY_FLAG_DRAW_SUN        (1 << 3)
 #define PHYSICAL_SKY_FLAG_DRAW_PLANET     (1 << 4)
+#define PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS  (1 << 5)
 
 #define PHYSICAL_SKY_MASK_OFFSET (PHYSICAL_SKY_FLAG_DRAW_CLOUDS - 1)
 
