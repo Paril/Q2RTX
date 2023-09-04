@@ -441,6 +441,15 @@ typedef struct client_static_s {
         bool        eof;
         entity_state_t last_ambients[MAX_AMBIENT_ENTITIES];
     } demo;
+    struct {
+        // Number of timedemo runs to perform
+        int         runs_total;
+        // Current run
+        int         run_current;
+        // Results of timedemo runs
+        unsigned    *results;
+    } timedemo;
+
 } client_static_t;
 
 extern client_static_t    cls;
@@ -728,7 +737,7 @@ void CL_InitTEnts(void);
 void CL_PredictAngles(void);
 void CL_PredictMovement(void);
 void CL_CheckPredictionError(void);
-void CL_ClipMoveToEntities(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, trace_t *tr, int mask);
+void CL_ClipMoveToEntities(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, trace_t *tr, int mask);
 
 //
 // effects.c
@@ -930,7 +939,7 @@ void HTTP_CleanupDownloads(void);
 #define HTTP_Init()                     (void)0
 #define HTTP_Shutdown()                 (void)0
 #define HTTP_SetServer(url)             (void)0
-#define HTTP_QueueDownload(path, type)  Q_ERR_NOSYS
+#define HTTP_QueueDownload(path, type)  Q_ERR(ENOSYS)
 #define HTTP_RunDownloads()             (void)0
 #define HTTP_CleanupDownloads()         (void)0
 #endif

@@ -145,9 +145,7 @@ char *COM_SkipPath(const char *pathname)
 {
     char    *last;
 
-    if (!pathname) {
-        Com_Errorf(ERR_FATAL, "%s: NULL", __func__);
-    }
+    Q_assert(pathname);
 
     last = (char *)pathname;
     while (*pathname) {
@@ -185,9 +183,7 @@ char *COM_FileExtension(const char *in)
 {
     const char *last, *s;
 
-    if (!in) {
-        Com_Errorf(ERR_FATAL, "%s: NULL", __func__);
-    }
+    Q_assert(in);
 
     for (last = s = in + strlen(in); s != in; s--) {
         if (*s == '/') {
@@ -708,9 +704,7 @@ size_t Q_strlcat(char *dst, const char *src, size_t size)
 {
     size_t len = strlen(dst);
 
-    if (len >= size) {
-        Com_Errorf(ERR_FATAL, "%s: already overflowed", __func__);
-    }
+    Q_assert(len < size);
 
     return len + Q_strlcpy(dst + len, src, size - len);
 }
@@ -759,29 +753,11 @@ size_t Q_vsnprintf(char *dest, size_t size, const char *fmt, va_list argptr)
 {
     int ret;
 
-    if (size > INT_MAX)
-        Com_Errorf(ERR_FATAL, "%s: bad buffer size", __func__);
-
+    Q_assert(size <= INT_MAX);
     ret = vsnprintf(dest, size, fmt, argptr);
-    if (ret < 0)
-        Com_Errorf(ERR_FATAL, "%s: bad return value", __func__);
+    Q_assert(ret >= 0);
 
     return ret;
-}
-
-/*
-===============
-Q_snprintf
-
-Returns number of characters that would be written into the buffer,
-excluding trailing '\0'. If the returned value is equal to or greater than
-buffer size, resulting string is truncated.
-===============
-*/
-size_t Q_snprintf(char *dest, size_t size, const char *fmt, ...)
-{
-    Com_VarArgsBufz(dest, size);
-    return len;
 }
 
 /*
@@ -801,6 +777,21 @@ static size_t Q_vscnprintf(char *dest, size_t size, const char *fmt, va_list arg
     }
 
     return 0;
+}
+
+/*
+===============
+Q_snprintf
+
+Returns number of characters that would be written into the buffer,
+excluding trailing '\0'. If the returned value is equal to or greater than
+buffer size, resulting string is truncated.
+===============
+*/
+size_t Q_snprintf(char *dest, size_t size, const char *fmt, ...)
+{
+    Com_VarArgsBufz(dest, size);
+    return len;
 }
 
 /*

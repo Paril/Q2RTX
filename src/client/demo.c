@@ -308,7 +308,7 @@ void CL_Stop_f(void)
     format_demo_size(buffer, sizeof(buffer));
 
 // close demofile
-    FS_FCloseFile(cls.demo.recording);
+    FS_CloseFile(cls.demo.recording);
     cls.demo.recording = 0;
     cls.demo.paused = false;
     cls.demo.frames_written = 0;
@@ -572,7 +572,8 @@ static void finish_demo(int ret)
 {
     char *s = Cvar_VariableString("nextserver");
 
-    if (!s[0]) {
+    // Only execute nextserver if back-to-back timedemos are complete
+    if (!s[0] && cls.timedemo.run_current >= cls.timedemo.runs_total) {
         if (ret == 0) {
             Com_Error(ERR_DISCONNECT, "Demo finished");
         } else {
@@ -582,11 +583,13 @@ static void finish_demo(int ret)
 
     CL_Disconnect(ERR_RECONNECT);
 
-    Cvar_Set("nextserver", "");
+    if (cls.timedemo.run_current < cls.timedemo.runs_total)
+        return;
 
     Cbuf_AddText(&cmd_buffer, s);
     Cbuf_AddText(&cmd_buffer, "\n");
-    Cbuf_Execute(&cmd_buffer);
+
+    Cvar_Set("nextserver", "");
 }
 
 static void update_status(void)
@@ -656,7 +659,7 @@ static void CL_PlayDemo_f(void)
     type = read_first_message(f);
     if (type < 0) {
         Com_Printf("Couldn't read %s: %s\n", name, Q_ErrorString(type));
-        FS_FCloseFile(f);
+        FS_CloseFile(f);
         return;
     }
 
@@ -825,6 +828,12 @@ void CL_FirstDemoFrame(void)
 
     // begin timedemo
     if (com_timedemo->integer) {
+        if(cls.timedemo.runs_total == 0) {
+            cls.timedemo.runs_total = com_timedemo->integer;
+            cls.timedemo.run_current = 0;
+            cls.timedemo.results = Z_Malloc(cls.timedemo.runs_total * sizeof(unsigned));
+        }
+
         cls.demo.time_frames = 0;
         cls.demo.time_start = Sys_Milliseconds();
     }
@@ -897,7 +906,7 @@ static void CL_Seek_f(void)
 
         if (snap) {
             Com_DPrintf("found snap at %d\n", snap->framenum);
-            ret = FS_Seek(cls.demo.playback, snap->filepos);
+            ret = FS_Seek(cls.demo.playback, snap->filepos, SEEK_SET);
             if (ret < 0) {
                 Com_EPrintf("Couldn't seek demo: %s\n", Q_ErrorString(ret));
                 goto done;
@@ -1018,7 +1027,7 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
     char string[MAX_QPATH];
     int clientNum, type;
 
-    FS_FOpenFile(path, &f, FS_MODE_READ | FS_FLAG_GZIP);
+    FS_OpenFile(path, &f, FS_MODE_READ | FS_FLAG_GZIP);
     if (!f) {
         return NULL;
     }
@@ -1057,11 +1066,11 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         parse_info_string(info, clientNum, index, string);
     }
 
-    FS_FCloseFile(f);
+    FS_CloseFile(f);
     return info;
 
 fail:
-    FS_FCloseFile(f);
+    FS_CloseFile(f);
     return NULL;
 
 }
@@ -1078,18 +1087,32 @@ void CL_CleanupDemos(void)
     }
 
     if (cls.demo.playback) {
-        FS_FCloseFile(cls.demo.playback);
+        FS_CloseFile(cls.demo.playback);
 
         if (com_timedemo->integer && cls.demo.time_frames) {
             unsigned msec = Sys_Milliseconds();
 
             if (msec > cls.demo.time_start) {
-                float sec = (msec - cls.demo.time_start) * 0.001f;
+                cls.timedemo.results[cls.timedemo.run_current] = msec - cls.demo.time_start;
+
+                cls.timedemo.run_current++;
+                if (cls.timedemo.run_current >= cls.timedemo.runs_total) {
+                    // Print timedemo results
+                    for (int i = 0; i < cls.timedemo.runs_total; i++) {
+                        float sec = cls.timedemo.results[i] * 0.001f;
                 float fps = cls.demo.time_frames / sec;
 
-                Com_Printf("%u frames, %3.1f seconds: %f fps\n",
+                        Com_Printf("%u frames, %3.2f seconds: %f fps\n",
                            cls.demo.time_frames, sec, fps);
             }
+                    // Clean up
+                    Z_Free(cls.timedemo.results);
+                    memset(&cls.timedemo, 0, sizeof(cls.timedemo));
+                } else {
+                    // Restart demo
+                    Cbuf_InsertText(&cmd_buffer, va("demo %s", cls.servername));
+        }
+    }
         }
     }
 

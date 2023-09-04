@@ -119,6 +119,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #else
 #define q_offsetof(t, m)    ((size_t)&(q_resolve_field(t,m)))
 #endif
+#define q_alignof(t)        __alignof__(t)
 
 #ifdef _WIN32
 #define q_exported          __attribute__((dllexport))
@@ -138,6 +139,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define q_likely(x)         !!(x)
 #define q_unlikely(x)       !!(x)
 #define q_offsetof(t, m)    ((size_t)&(q_resolve_field(t,m)))
+#define q_alignof(t)        __alignof(t)
 
 #ifdef _WIN32
 #define q_exported          __declspec(dllexport)

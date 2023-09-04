@@ -633,7 +633,7 @@ static void save_materials(const char* file_name, bool save_all, bool force)
 	}
 
 	qhandle_t file = 0;
-	int err = FS_FOpenFile(file_name, &file, FS_MODE_WRITE);
+	int err = FS_OpenFile(file_name, &file, FS_MODE_WRITE);
 	
 	if (err < 0 || !file)
 	{
@@ -715,7 +715,7 @@ static void save_materials(const char* file_name, bool save_all, bool force)
 		++count;
 	}
 
-	FS_FCloseFile(file);
+	FS_CloseFile(file);
 
 	Com_Printf("saved %d materials\n", count);
 }
@@ -782,8 +782,8 @@ static bool game_image_identical_to_base(const char* name)
 	bool result = false;
 
 	qhandle_t base_file = -1, game_file = -1;
-	if((FS_FOpenFile(name, &base_file, FS_MODE_READ | FS_PATH_BASE | FS_BUF_NONE) >= 0)
-		&& (FS_FOpenFile(name, &game_file, FS_MODE_READ | FS_PATH_GAME | FS_BUF_NONE) >= 0))
+	if((FS_OpenFile(name, &base_file, FS_MODE_READ | FS_PATH_BASE | FS_BUF_NONE) >= 0)
+		&& (FS_OpenFile(name, &game_file, FS_MODE_READ | FS_PATH_GAME | FS_BUF_NONE) >= 0))
 	{
 		int64_t base_len = FS_Length(base_file), game_len = FS_Length(game_file);
 		if(base_len == game_len)
@@ -800,9 +800,9 @@ static bool game_image_identical_to_base(const char* name)
 		}
 	}
 	if (base_file >= 0)
-		FS_FCloseFile(base_file);
+		FS_CloseFile(base_file);
 	if (game_file >= 0)
-		FS_FCloseFile(game_file);
+		FS_CloseFile(game_file);
 
 	return result;
 }
@@ -1309,7 +1309,8 @@ bool MAT_IsTransparent(uint32_t material)
 	return MAT_IsKind(material, MATERIAL_KIND_SLIME)
 		|| MAT_IsKind(material, MATERIAL_KIND_WATER)
 		|| MAT_IsKind(material, MATERIAL_KIND_GLASS)
-		|| MAT_IsKind(material, MATERIAL_KIND_TRANSPARENT);
+		|| MAT_IsKind(material, MATERIAL_KIND_TRANSPARENT)
+		|| MAT_IsKind(material, MATERIAL_KIND_TRANSP_MODEL);
 }
 
 bool MAT_IsMasked(uint32_t material)

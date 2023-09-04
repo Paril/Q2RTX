@@ -1900,7 +1900,7 @@ static void CL_WriteConfig_f(void)
         Cvar_WriteVariables(f, mask, modified);
     }
 
-    if (FS_FCloseFile(f))
+    if (FS_CloseFile(f))
         Com_EPrintf("Error writing %s\n", buffer);
     else
         Com_Printf("Wrote %s.\n", buffer);
@@ -2093,7 +2093,7 @@ void CL_WriteConfig(void)
     qhandle_t f;
     int ret;
 
-    ret = FS_FOpenFile(COM_CONFIG_CFG, &f, FS_MODE_WRITE | FS_FLAG_TEXT);
+    ret = FS_OpenFile(COM_CONFIG_CFG, &f, FS_MODE_WRITE | FS_FLAG_TEXT);
     if (!f) {
         Com_EPrintf("Couldn't open %s for writing: %s\n",
                     COM_CONFIG_CFG, Q_ErrorString(ret));
@@ -2105,7 +2105,7 @@ void CL_WriteConfig(void)
     Key_WriteBindings(f);
     Cvar_WriteVariables(f, CVAR_ARCHIVE, true);
 
-    if (FS_FCloseFile(f))
+    if (FS_CloseFile(f))
         Com_EPrintf("Error writing %s\n", COM_CONFIG_CFG);
 }
 
@@ -3088,9 +3088,7 @@ void CL_Init(void)
     CL_InitLocal();
     IN_Init();
 
-    if (inflateInit2(&cls.z, -MAX_WBITS) != Z_OK) {
-        Com_Errorf(ERR_FATAL, "%s: inflateInit2() failed", __func__);
-    }
+    Q_assert(inflateInit2(&cls.z, -MAX_WBITS) == Z_OK);
 
     CL_LoadDownloadIgnores();
 

@@ -476,6 +476,8 @@ void create_orthographic_matrix(mat4_t matrix, float xmin, float xmax,
 	PROFILER_DO(PROFILER_ASVGF_GRADIENT_REPROJECT,   1) \
 	PROFILER_DO(PROFILER_DIRECT_LIGHTING,            1) \
 	PROFILER_DO(PROFILER_INDIRECT_LIGHTING,          1) \
+	PROFILER_DO(PROFILER_INDIRECT_LIGHTING_0,        2) \
+	PROFILER_DO(PROFILER_INDIRECT_LIGHTING_1,        2) \
 	PROFILER_DO(PROFILER_ASVGF_FULL,                 1) \
 	PROFILER_DO(PROFILER_ASVGF_RECONSTRUCT_GRADIENT, 2) \
 	PROFILER_DO(PROFILER_ASVGF_TEMPORAL,             2) \
@@ -844,8 +846,8 @@ bool R_InterceptKey(unsigned key, bool down);
 
 void IMG_Load(image_t *image, byte *pic);
 void IMG_Unload(image_t *image);
-byte *IMG_ReadPixels(int *width, int *height, int *rowbytes);
-float *IMG_ReadPixelsHDR(int *width, int *height);
+void IMG_ReadPixels(screenshot_t *s);
+void IMG_ReadPixelsHDR(screenshot_t *s);
 
 int MOD_LoadMD2(model_t *model, const void *rawdata, size_t length, const char* mod_name);
 int MOD_LoadMD3(model_t* model, const void* rawdata, size_t length, const char* mod_name);

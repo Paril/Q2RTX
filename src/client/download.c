@@ -55,7 +55,7 @@ int CL_QueueDownload(const char *path, dltype_t type)
         // avoid sending duplicate requests
         if (!FS_pathcmp(path, q->path)) {
             Com_DPrintf("%s: %s [DUP]\n", __func__, path);
-            return Q_ERR_EXIST;
+            return Q_ERR(EEXIST);
         }
     }
 
@@ -157,7 +157,7 @@ void CL_CleanupDownloads(void)
     cls.download.position = 0;
 
     if (cls.download.file) {
-        FS_FCloseFile(cls.download.file);
+        FS_CloseFile(cls.download.file);
         cls.download.file = 0;
     }
 
@@ -191,7 +191,7 @@ void CL_LoadDownloadIgnores(void)
     // load new list
     len = FS_LoadFile(CL_DOWNLOAD_IGNORES, (void **)&raw);
     if (!raw) {
-        if (len != Q_ERR_NOENT)
+        if (len != Q_ERR(ENOENT))
             Com_EPrintf("Couldn't load %s: %s\n",
                         CL_DOWNLOAD_IGNORES, Q_ErrorString(len));
         return;
@@ -255,9 +255,9 @@ static bool start_udp_download(dlqueue_t *q)
 
     // check to see if we already have a tmp for this file, if so, try to resume
     // open the file if not opened yet
-    ret = FS_FOpenFile(cls.download.temp, &f, FS_MODE_RDWR);
+    ret = FS_OpenFile(cls.download.temp, &f, FS_MODE_RDWR);
     if (ret > INT_MAX) {
-        FS_FCloseFile(f);
+        FS_CloseFile(f);
         ret = -EFBIG;
     }
     if (ret >= 0) {  // it exists
@@ -266,7 +266,7 @@ static bool start_udp_download(dlqueue_t *q)
         // give the server an offset to start the download
         Com_DPrintf("[UDP] Resuming %s\n", q->path);
         CL_ClientCommand(va("download \"%s\" %d", q->path, (int)ret));
-    } else if (ret == Q_ERR_NOENT) {  // it doesn't exist
+    } else if (ret == Q_ERR(ENOENT)) {  // it doesn't exist
         Com_DPrintf("[UDP] Downloading %s\n", q->path);
         CL_ClientCommand(va("download \"%s\"", q->path));
     } else { // error happened
@@ -317,7 +317,7 @@ static void finish_udp_download(const char *msg)
     cls.download.position = 0;
 
     if (cls.download.file) {
-        FS_FCloseFile(cls.download.file);
+        FS_CloseFile(cls.download.file);
         cls.download.file = 0;
     }
 
@@ -360,8 +360,8 @@ static bool inflate_udp_download(byte *data, int size, int decompressed_size)
     int         ret;
 
     // initialize stream if not done yet
-    if (z->state == NULL && inflateInit2(z, -MAX_WBITS) != Z_OK)
-        Com_Errorf(ERR_FATAL, "%s: inflateInit2() failed", __func__);
+    if (!z->state)
+        Q_assert(inflateInit2(z, -MAX_WBITS) == Z_OK);
     
     if (!size)
         return true;
@@ -425,7 +425,7 @@ void CL_HandleDownload(byte *data, int size, int percent, int decompressed_size)
 
     // open the file if not opened yet
     if (!cls.download.file) {
-        ret = FS_FOpenFile(cls.download.temp, &cls.download.file, FS_MODE_WRITE);
+        ret = FS_OpenFile(cls.download.temp, &cls.download.file, FS_MODE_WRITE);
         if (!cls.download.file) {
             Com_EPrintf("[UDP] Couldn't open %s for writing: %s\n",
                         cls.download.temp, Q_ErrorString(ret));
@@ -453,7 +453,7 @@ void CL_HandleDownload(byte *data, int size, int percent, int decompressed_size)
         CL_ClientCommand("nextdl");
     } else {
         // close the file before renaming
-        FS_FCloseFile(cls.download.file);
+        FS_CloseFile(cls.download.file);
         cls.download.file = 0;
 
         // rename the temp file to its final name
@@ -501,10 +501,10 @@ static int check_file_len(const char *path, size_t len, dltype_t type)
 
     // check for oversize path
     if (len >= MAX_QPATH)
-        return Q_ERR_NAMETOOLONG;
+        return Q_ERR(ENAMETOOLONG);
 
     // normalize path
-    len = FS_NormalizePath(buffer, path);
+    len = FS_NormalizePathBuffer(buffer, path, sizeof(buffer));
 
     // check for empty path
     if (len == 0)
@@ -532,17 +532,17 @@ static int check_file_len(const char *path, size_t len, dltype_t type)
 
     if (FS_FileExists(buffer))
         // it exists, no need to download
-        return Q_ERR_EXIST;
+        return Q_ERR(EEXIST);
 
     if (valid == PATH_MIXED_CASE)
         // convert to lower case to make download server happy
         Q_strlwr(buffer);
 
     if (CL_IgnoreDownload(buffer))
-        return Q_ERR_PERM;
+        return Q_ERR(EPERM);
 
     ret = HTTP_QueueDownload(buffer, type);
-    if (ret != Q_ERR_NOSYS)
+    if (ret != Q_ERR(ENOSYS))
         return ret;
 
     // queue and start legacy UDP download

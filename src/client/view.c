@@ -199,11 +199,18 @@ void V_Flashlight(void)
     // Flashlight direction (as angles)
     vec3_t flashlight_angles;
 
-    /* Use cl.playerEntityOrigin+viewoffset, playerEntityAngles instead of
-        * cl.refdef.vieworg, cl.refdef.viewangles as as the cl.refdef values
-        * are the camera values, but not the player "eye" values in 3rd person mode. */
-
-    VectorCopy(cl.predicted_angles, flashlight_angles);
+    if (cls.demo.playback) {
+        /* If a demo is played we don't have predicted_angles,
+         * and we can't use cl.refdef.viewangles for the same reason
+         * below. However, lerping the angles from the old & current frame
+         * work nicely. */
+        LerpAngles(cl.oldframe.ps.viewangles, cl.frame.ps.viewangles, cl.lerpfrac, flashlight_angles);
+    } else {
+        /* Use cl.playerEntityOrigin+viewoffset, playerEntityAngles instead of
+         * cl.refdef.vieworg, cl.refdef.viewangles as as the cl.refdef values
+         * are the camera values, but not the player "eye" values in 3rd person mode. */
+        VectorCopy(cl.predicted_angles, flashlight_angles);
+    }
 
     vec3_t view_dir, right_dir, up_dir;
     AngleVectors(flashlight_angles, view_dir, right_dir, up_dir);
@@ -594,7 +601,7 @@ void V_Init(void)
 	cl_show_lights = Cvar_Get("cl_show_lights", "0", 0);
     cl_flashlight = Cvar_Get("cl_flashlight", "0", 0);
     cl_flashlight_intensity = Cvar_Get("cl_flashlight_intensity", "10000", CVAR_CHEAT);
-    flashlight_profile_tex = R_RegisterImage("flashlight_profile", IT_PIC, IF_PERMANENT | IF_BILERP, NULL);
+        flashlight_profile_tex = R_RegisterImage("flashlight_profile", IT_PIC, IF_PERMANENT | IF_BILERP);
     cl_add_particles = Cvar_Get("cl_particles", "1", 0);
     cl_add_entities = Cvar_Get("cl_entities", "1", 0);
     cl_add_blend = Cvar_Get("cl_blend", "1", 0);
