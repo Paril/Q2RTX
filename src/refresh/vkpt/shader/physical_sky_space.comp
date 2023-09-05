@@ -220,9 +220,6 @@ vec4 integratePlanet(SunInfo sun, PlanetInfo planet, vec3 dirView) {
     bool bPlanetIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar) : false;
     bool bAtmosphereIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar) : false;
 
-    bool bPlanetIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fInnerRadius2, fPlanetNearFar) : false;
-    bool bAtmosphereIntersection = draw_planet != 0 ? intersectSphere(v3CameraPos, v3Ray, fCameraHeight2, fOuterRadius2, fAtmosphereNearFar) : false;
-
     if (bPlanetIntersection) {
 
 	    const float fFar = fPlanetNearFar.x;
