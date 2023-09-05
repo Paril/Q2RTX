@@ -357,8 +357,6 @@ void main() {
 
 	bool is_direct_sunlight = true;
     
-	const int draw_sun = global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_DRAW_SUN;
-
 	vec3 radiance = vec3(0);
 
 	// compute background
