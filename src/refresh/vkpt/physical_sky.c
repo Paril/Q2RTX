@@ -66,6 +66,9 @@ cvar_t *physical_sky_cloud_overlay_height;
 cvar_t* physical_sky_cloud_overlay_texture0;
 cvar_t* physical_sky_cloud_overlay_texture1;
 
+cvar_t* physical_sky_cloud_overlay_brightness0;
+cvar_t* physical_sky_cloud_overlay_brightness1;
+
 cvar_t *physical_sky_cloud_overlay_speed0;
 cvar_t *physical_sky_cloud_overlay_scale0;
 cvar_t *physical_sky_cloud_overlay_direction0;
@@ -79,6 +82,7 @@ cvar_t *physical_sky_brightness;
 cvar_t *physical_sky_sun_texture;
 
 cvar_t *physical_sky_planet_radius;
+cvar_t *physical_sky_planet_atmosphere;
 cvar_t *physical_sky_planet_render;
 cvar_t *physical_sky_planet_texture;
 
@@ -387,11 +391,9 @@ vkpt_physical_sky_endRegistration()
 		planet_normal_path[0] = '\0';
 
 		{
-			strcpy(planet_albedo_path, "env/"); // first has to be strcpy
 			strcat(planet_albedo_path, physical_sky_planet_texture->string);
 			strcat(planet_albedo_path, "_albedo.tga");
 
-			strcpy(planet_normal_path, "env/");
 			strcat(planet_normal_path, physical_sky_planet_texture->string);
 			strcat(planet_normal_path, "_normal.tga");
 		}
@@ -408,7 +410,6 @@ vkpt_physical_sky_endRegistration()
 	char file_path[64];
 	file_path[0] = '\0';
 
-	strcpy(file_path, "env/");
 	strcat(file_path, physical_sky_sun_texture->string);
 	strcat(file_path, ".tga");
 
@@ -874,9 +875,15 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t* ubo, const sun_light_t* light, 
 	// sun
 
 	ubo->sun_bounce_scale = sun_bounce->value;
-	ubo->sun_tan_half_angle = tanf(light->angular_size_rad * 0.5f);
-	ubo->sun_cos_half_angle = cosf(light->angular_size_rad * 0.5f);
-	ubo->sun_solid_angle = 2 * M_PI * (float)(1.0 - cos(light->angular_size_rad * 0.5)); // use double for precision
+	// This affects the brightness of the sun depending on the sun size, but we don't want that even if it's physically correct
+	//ubo->sun_tan_half_angle = tanf(light->angular_size_rad * 0.5f);
+	//ubo->sun_cos_half_angle = cosf(light->angular_size_rad * 0.5f);
+	//ubo->sun_solid_angle = 2 * M_PI * (float)(1.0 - cos(light->angular_size_rad * 0.5)); // use double for precision
+	// This ensures all lighting is constant regardless of the sun size
+	ubo->sun_tan_half_angle = tanf(0.01 * 0.5f);
+	ubo->sun_cos_half_angle = cosf(0.01 * 0.5f);
+	ubo->sun_cosmetic_size = tanf(light->angular_size_rad * 0.5f) / 100.f; // size of the sun according to sun_angle
+	ubo->sun_solid_angle = 2 * M_PI * (float)(1.0 - cos(0.01 * 0.5)); // use double for precision
 
 	if (sun_surface_map_render->integer)
 		ubo->sun_surface_map = physical_sky_sun_surface_map; // the texture map for the sun
@@ -934,6 +941,7 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t* ubo, const sun_light_t* light, 
 		if (physical_sky_cloud_overlay->value > 0)
 			flags = flags | PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS;
 
+
 		ubo->physical_sky_flags = flags;
 
 		// compute approximation of reflected radiance from ground
@@ -957,6 +965,8 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t* ubo, const sun_light_t* light, 
 	ubo->cloud_overlay_scale1 = physical_sky_cloud_overlay_scale1->value;
 	ubo->cloud_overlay_direction1[0] = cosf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction1->value)) * physical_sky_cloud_overlay_speed1->value;
 	ubo->cloud_overlay_direction1[1] = sinf(ConvertAngleToRadians(physical_sky_cloud_overlay_direction1->value)) * physical_sky_cloud_overlay_speed1->value;
+	ubo->cloud_overlay_brightness0 = physical_sky_cloud_overlay_brightness0->value;
+	ubo->cloud_overlay_brightness1 = physical_sky_cloud_overlay_brightness1->value;
 
 
 	// planet
@@ -965,6 +975,7 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t* ubo, const sun_light_t* light, 
     ubo->planet_normal_map = physical_sky_planet_normal_map;
 
 	ubo->planet_radius = physical_sky_planet_radius->value;
+	ubo->planet_radius_ratio = physical_sky_planet_atmosphere->value ? 0.945f : 1.0f;
 	ubo->physical_sky_flags |= physical_sky_planet_render->integer ? PHYSICAL_SKY_FLAG_DRAW_PLANET : 0x0;
 	ubo->physical_sky_flags |= sun_render->integer ? PHYSICAL_SKY_FLAG_DRAW_SUN : 0x0;
 
@@ -1082,6 +1093,9 @@ void InitialiseSkyCVars()
 	physical_sky_cloud_overlay_texture0 = Cvar_Get("physical_sky_cloud_overlay_texture0", "", 0);
 	physical_sky_cloud_overlay_texture1 = Cvar_Get("physical_sky_cloud_overlay_texture1", "", 0);
 
+	physical_sky_cloud_overlay_brightness0 = Cvar_Get("physical_sky_cloud_overlay_brightness0", "1", 0);
+	physical_sky_cloud_overlay_brightness1 = Cvar_Get("physical_sky_cloud_overlay_brightness1", "1", 0);
+
 	physical_sky_cloud_overlay_scale0 = Cvar_Get("physical_sky_cloud_overlay_scale0", "50.0", 0);
 	physical_sky_cloud_overlay_scale1 = Cvar_Get("physical_sky_cloud_overlay_scale1", "50.0", 0);
 
@@ -1101,6 +1115,9 @@ void InitialiseSkyCVars()
 
 	physical_sky_planet_radius = Cvar_Get("planet_radius", "0.4", 0);
 	physical_sky_planet_radius->changed = physical_sky_cvar_changed;
+
+	physical_sky_planet_atmosphere = Cvar_Get("planet_atmosphere", "1", 0);
+	physical_sky_planet_atmosphere->changed = physical_sky_cvar_changed;
 
 	physical_sky_planet_texture = Cvar_Get("planet_texture", "planet", 0);
 

@@ -87,12 +87,13 @@ VkResult vkpt_postprocess_record_cmd_buffer(VkCommandBuffer cmd_buf)
 VkResult vkpt_postprocess_destroy()
 {
 	vkDestroyPipelineLayout(qvk.device, postprocess_pipeline_layout, NULL);
+	postprocess_pipeline_layout = 0;
 	return VK_SUCCESS;
 }
 
 VkResult vkpt_postprocess_destroy_pipeline()
 {
 	vkDestroyPipeline(qvk.device, postprocess_pipeline, NULL);
-
+	postprocess_pipeline = 0;
 	return VK_SUCCESS;
 }

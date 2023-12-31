@@ -51,6 +51,7 @@ typedef enum {
     IM_TGA,
     IM_JPG,
     IM_PNG,
+    IM_DDS,
     IM_MAX
 } imageformat_t;
 
@@ -58,8 +59,11 @@ typedef enum {
 typedef enum
 {
     PF_R8G8B8A8_UNORM = 0,
+    PF_R8G8B8A8_BC7_UNORM,
     PF_R16_UNORM
 } pixelformat_t;
+
+typedef int (*mip_size_cb_t)(int width, int height, uint32_t mip_level);
 
 typedef struct image_s {
     list_t          entry;
@@ -74,7 +78,9 @@ typedef struct image_s {
 	int             is_srgb;
 	uint64_t        last_modified;
 #if REF_VKPT
-    byte            *pix_data; // todo: add miplevels
+    byte            *pix_data;
+    uint32_t        mip_levels;
+    mip_size_cb_t   mip_size_cb; // Callback to calculate mip size
     pixelformat_t   pixel_format; // pixel format (only supported by VKPT renderer)
     vec3_t          light_color; // use this color if this is a light source
 	vec2_t          min_light_texcoord;

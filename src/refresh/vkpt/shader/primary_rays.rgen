@@ -37,7 +37,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sky.h"
 
-#define OVERLAY_CLOUD_HEIHGT 10
+#define OVERLAY_CLOUD_HEIGT 30 // height of the clouds in world units, the higher they are the smaller they appear
+#define OVERLAY_CLOUD_CURVATURE 0.7 // 0 = flat, 1 = full curvature
+#define OVERLAY_CLOUD_FALLOFF 0.1 // falloff at the horizon, 0.1 is good, 0.5 is halfway between horizon and zenith, 0 is strictly at the horizon
 
 Ray
 get_primary_ray(vec2 screen_pos)
@@ -119,17 +121,11 @@ void generate_rng_seed(ivec2 ipos, bool is_odd_checkerboard)
 // Returns the uv coordinate of the plane
 vec2 intersect_plane(vec3 origin, vec3 direction)
 {
-
-	float t = (OVERLAY_CLOUD_HEIHGT - origin.y) / direction.z;
+	float curvature = sin((direction.z * M_PI) * OVERLAY_CLOUD_CURVATURE);
+	float t = (OVERLAY_CLOUD_HEIGT * curvature - origin.y) / direction.z;
 	vec3 intersection = origin + t * direction.xzy;
 	return intersection.xz;
 }
-
-vec2 parallax_mapping(vec2 texCoords, float height, vec3 viewDir)
-{ 
-    vec2 p = viewDir.xy / viewDir.z * height;
-    return texCoords - p;    
-} 
 
 void
 main()
@@ -205,17 +201,20 @@ main()
 		vec3 env = env_map(ray.direction, false);	
 		env *= global_ubo.pt_env_scale;
 
-		float terrain_depth = texture(IMG_TERRAIN_DEPTH, ray.direction.xzy).r;
-		if(((global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS) != 0) && (terrain_depth <= 0.0))
+		if(((global_ubo.physical_sky_flags & PHYSICAL_SKY_FLAG_OVERLAY_CLOUDS) != 0))
 		{
+			//vec2 plane_uv0 = vec2(0);
+			//float t = ellipseIntersection(ray.direction,  plane_uv0);
 			vec2 plane_uv0 = intersect_plane(vec3(0,0,0), ray.direction);
 
 			if(plane_uv0 != vec2(0))
 			{
-				vec2 plane_uv1 = parallax_mapping(plane_uv0, 1, ray.direction); // The top is the only one that needs parallax
+				const float falloff = smoothstep(OVERLAY_CLOUD_FALLOFF, 1, ray.direction.z);
 
-				plane_uv1 /= global_ubo.cloud_overlay_scale1;
+				vec2 plane_uv1 = plane_uv0;
+
 				plane_uv0 /= global_ubo.cloud_overlay_scale0;
+				plane_uv1 /= global_ubo.cloud_overlay_scale1;
 
 				plane_uv0 +=  global_ubo.cloud_overlay_direction0 * global_ubo.time; // animate the clouds
 				plane_uv1 += global_ubo.cloud_overlay_direction1 * global_ubo.time;
@@ -223,11 +222,13 @@ main()
 				vec4 cloud_color0 = global_texture(global_ubo.cloud_overlay_map0, plane_uv0);
 				vec4 cloud_color1 = global_texture(global_ubo.cloud_overlay_map1, plane_uv1);
 				
-				// first layer clouds
-				// Multiply by sun luminance to get the correct color, because otherwise the autoexposure will make them too bright
-				env = mix(env, cloud_color1.rgb * sun_color_ubo.sun_luminance, cloud_color1.a);
 				// second layer clouds
-				env = mix(env, cloud_color0.rgb * sun_color_ubo.sun_luminance, cloud_color0.a) ;
+				// Multiply by sun luminance to get the correct color, because otherwise the autoexposure will make them too bright
+				env = mix(env, cloud_color1.rgb * sun_color_ubo.sun_luminance * global_ubo.cloud_overlay_brightness1, cloud_color1.a * falloff);
+				// fist layer clouds
+				env = mix(env, cloud_color0.rgb * sun_color_ubo.sun_luminance * global_ubo.cloud_overlay_brightness0, cloud_color0.a * falloff);
+				//env = mix(env, vec3(plane_uv0, 0), 1);
+
 			}
 		}
 

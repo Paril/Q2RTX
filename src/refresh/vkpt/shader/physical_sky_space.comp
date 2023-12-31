@@ -381,6 +381,7 @@ void main() {
 	planet.normalMap = global_ubo.planet_normal_map;
 	planet.outerRadius = global_ubo.planet_radius;
 	planet.position = global_ubo.planet_position;
+	planet.radiusRatio = global_ubo.planet_radius_ratio;
 	vec4 planet_color = integratePlanet(sun, planet, eyeVec);
 	radiance = mix(radiance, planet_color.rgb, planet_color.a);
 	out_radiance = mix(out_radiance, planet_color.rgb, planet_color.a);

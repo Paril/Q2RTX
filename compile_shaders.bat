@@ -1,6 +1,6 @@
 @echo off
 
-IF "%BUILD_DIRECTORY%" == "" SET BUILD_DIRECTORY=build
+IF "%BUILD_DIRECTORY%" == "" SET BUILD_DIRECTORY=out\build\x64-Debug
 
 IF NOT EXIST %BUILD_DIRECTORY% (
 	echo build directory not found

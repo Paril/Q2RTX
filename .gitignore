@@ -45,3 +45,6 @@ baseq2/**/*.txt
 !baseq2/maps/sky/*.txt
 !baseq2/pics/flashlight_profile.png
 /baseq2/env
+
+# Texture compression tools
+tools/compress*

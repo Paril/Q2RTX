@@ -101,6 +101,22 @@ void vkpt_invalidate_texture_descriptors()
 		descriptor_set_dirty_flags[index] = 1;
 }
 
+static uint32_t get_bytes_per_pixel(pixelformat_t fmt)
+{
+	switch (fmt)
+	{
+	case PF_R16_UNORM:
+		return 2;
+	case PF_R8G8B8A8_UNORM:
+		return 4;
+	case PF_R8G8B8A8_BC7_UNORM:
+		return 1;
+	}
+
+	Com_EPrintf("get_bytes_per_pixel: unknown pixel format %d\n", fmt);
+	return 0;
+}
+
 static void textures_destroy_unused_set(uint32_t set_index)
 {
 	UnusedResources* unused_resources = texture_system.unused_resources + set_index;
@@ -481,11 +497,12 @@ load_blue_noise(void)
 }
 
 static int
-get_num_miplevels(int w, int h)
+get_num_miplevels(const image_t* img)
 {
-	return 1 + log2(max(w, h));
+	if (img->mip_levels > 0)
+		return img->mip_levels;
+	return 1 + log2(max(img->width, img->height));
 }
-
 
 /*
 ================
@@ -1513,6 +1530,8 @@ static VkFormat get_image_format(image_t *q_img)
 	{
 	case PF_R8G8B8A8_UNORM:
 		return q_img->is_srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+	case PF_R8G8B8A8_BC7_UNORM:
+		return q_img->is_srgb ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK;
 	case PF_R16_UNORM:
 		return VK_FORMAT_R16_UNORM;
 	}
@@ -1593,9 +1612,9 @@ vkpt_textures_end_registration()
 
 		img_info.extent.width = q_img->upload_width;
 		img_info.extent.height = q_img->upload_height;
-		img_info.mipLevels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		img_info.mipLevels = get_num_miplevels(q_img);
 		img_info.format = get_image_format(q_img);
-		if (!q_img->is_srgb)
+		if (!q_img->is_srgb && (q_img->pixel_format != PF_R8G8B8A8_BC7_UNORM))
 			img_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 		else
 			img_info.usage &= ~VK_IMAGE_USAGE_STORAGE_BIT;
@@ -1612,6 +1631,8 @@ vkpt_textures_end_registration()
 		total_size += mem_req.alignment - 1;
 		total_size &= ~(mem_req.alignment - 1);
 		total_size += mem_req.size;
+
+
 
 		DeviceMemory* image_memory = tex_image_memory + i;
 		image_memory->size = mem_req.size;
@@ -1648,7 +1669,7 @@ vkpt_textures_end_registration()
 
 		image_t* q_img = r_images + i;
 		
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		int num_mip_levels = get_num_miplevels(q_img);
 
 		img_view_info.image = tex_images[i];
 		img_view_info.subresourceRange.levelCount = num_mip_levels;
@@ -1656,7 +1677,7 @@ vkpt_textures_end_registration()
 		_VK(vkCreateImageView(qvk.device, &img_view_info, NULL, tex_image_views + i));
 		ATTACH_LABEL_VARIABLE(tex_image_views[i], IMAGE_VIEW);
 
-		if (!q_img->is_srgb)
+		if (!q_img->is_srgb && (q_img->pixel_format != PF_R8G8B8A8_BC7_UNORM))
 		{
 			img_view_info.subresourceRange.levelCount = 1;
 			_VK(vkCreateImageView(qvk.device, &img_view_info, NULL, tex_image_views_mip0 + i));
@@ -1684,7 +1705,7 @@ vkpt_textures_end_registration()
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
 
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		int num_mip_levels = get_num_miplevels(q_img);
 
 		VkMemoryRequirements mem_req;
 		vkGetImageMemoryRequirements(qvk.device, tex_images[i], &mem_req);
@@ -1713,26 +1734,36 @@ vkpt_textures_end_registration()
 				.newLayout        = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 		);
 
-		int bytes_per_pixel = q_img->pixel_format == PF_R16_UNORM ? 2 : 4;
-		memcpy(staging_buffer + offset, q_img->pix_data, wd * ht * bytes_per_pixel);
+		int bytes_per_pixel = get_bytes_per_pixel(q_img->pixel_format);
+		uint32_t size = 0;
+		// If it has mips already, get the region size from the mips.
+		if (q_img->mip_levels > 0)
+		{
+			for (int mip = 0; mip < num_mip_levels; mip++)
+				size += q_img->mip_size_cb(q_img->width, q_img->height, mip);
+		}
+		else
+			size = wd * ht * bytes_per_pixel;
 
-			VkBufferImageCopy cpy_info = {
-				.bufferOffset = offset,
-				.imageSubresource = { 
-					.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-					.mipLevel       = 0,
-					.baseArrayLayer = 0,
-					.layerCount     = 1,
-				},
-				.imageOffset    = { 0, 0, 0 },
-				.imageExtent    = { wd, ht, 1 }
-			};
+		memcpy(staging_buffer + offset, q_img->pix_data, size);
 
-			vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
+		VkBufferImageCopy cpy_info = {
+			.bufferOffset = offset,
+			.imageSubresource = { 
+				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel       = 0,
+				.baseArrayLayer = 0,
+				.layerCount     = 1,
+			},
+			.imageOffset    = { 0, 0, 0 },
+			.imageExtent    = { wd, ht, 1 }
+		};
 
-		// Transition mip 0 to VK_IMAGE_LAYOUT_GENERAL for use in the next command list.
+		// Copy mip 0.
+		vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
 
+		// Transition mips to VK_IMAGE_LAYOUT_GENERAL for use in the next command list.
 		subresource_range.baseMipLevel = 0;
 		subresource_range.levelCount = 1;
 
@@ -1744,6 +1775,36 @@ vkpt_textures_end_registration()
 			.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			.newLayout = VK_IMAGE_LAYOUT_GENERAL
 		);
+
+		// If image data has mipmaps, copy them too.
+		if (q_img->mip_levels > 0)
+		{
+			for (int mip = 1; mip < num_mip_levels; mip++)
+			{
+
+				cpy_info.bufferOffset += q_img->mip_size_cb(wd, ht, mip - 1); // Get the size of the previous mip.
+				cpy_info.imageSubresource.mipLevel = mip;
+				cpy_info.imageExtent.width = wd >> mip;
+				cpy_info.imageExtent.height = ht >> mip;
+
+				vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
+					VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
+
+				subresource_range.baseMipLevel = mip;
+				subresource_range.levelCount = 1;
+
+
+				IMAGE_BARRIER(cmd_buf,
+					.image = tex_images[i],
+					.subresourceRange = subresource_range,
+					.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_GENERAL
+				);
+
+			}
+		}
 
 		offset += mem_req.size;
 	}
@@ -1793,79 +1854,82 @@ vkpt_textures_end_registration()
 				(q_img->upload_height + 15) / 16, 1);
 		}
 
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		int num_mip_levels = get_num_miplevels(q_img);
 
 		int wd = q_img->upload_width;
 		int ht = q_img->upload_height;
-		
-		for (int mip = 1; mip < num_mip_levels; mip++) 
+
+		// If the pixel data doesn't have mipmaps, generate them.
+		if (q_img->mip_levels == 0)
 		{
-			subresource_range.baseMipLevel = mip - 1;
+			for (int mip = 1; mip < num_mip_levels; mip++)
+			{
+				subresource_range.baseMipLevel = mip - 1;
 
-			IMAGE_BARRIER(cmd_buf,
-				.image = tex_images[i],
-				.subresourceRange = subresource_range,
-				.srcAccessMask = (normalize && mip == 1) ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_TRANSFER_WRITE_BIT,
-				.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-				.oldLayout = (mip == 1) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				);
+				IMAGE_BARRIER(cmd_buf,
+					.image = tex_images[i],
+					.subresourceRange = subresource_range,
+					.srcAccessMask = (normalize && mip == 1) ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_TRANSFER_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+					.oldLayout = (mip == 1) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					);
 
-			int nwd = (wd > 1) ? (wd >> 1) : wd;
-			int nht = (ht > 1) ? (ht >> 1) : ht;
+				int nwd = (wd > 1) ? (wd >> 1) : wd;
+				int nht = (ht > 1) ? (ht >> 1) : ht;
 
-			VkImageBlit region = {
-				.srcSubresource = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.mipLevel = mip - 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				},
-				.srcOffsets = { 
-					{ 0, 0, 0 }, 
-					{ wd, ht, 1 } },
+				VkImageBlit region = {
+					.srcSubresource = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.mipLevel = mip - 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					},
+					.srcOffsets = {
+						{ 0, 0, 0 },
+						{ wd, ht, 1 } },
 
-				.dstSubresource = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.mipLevel = mip,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				},
-				.dstOffsets = { 
-					{ 0, 0, 0 }, 
-					{ nwd, nht, 1 } }
-			};
+					.dstSubresource = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.mipLevel = mip,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					},
+					.dstOffsets = {
+						{ 0, 0, 0 },
+						{ nwd, nht, 1 } }
+				};
 
-			vkCmdBlitImage(
-				cmd_buf, 
-				tex_images[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
-				tex_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-				1, &region, 
-				VK_FILTER_LINEAR);
+				vkCmdBlitImage(
+					cmd_buf,
+					tex_images[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					tex_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					1, &region,
+					VK_FILTER_LINEAR);
+
+				IMAGE_BARRIER(cmd_buf,
+					.image = tex_images[i],
+					.subresourceRange = subresource_range,
+					.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+					.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+					);
+
+				wd = nwd;
+				ht = nht;
+			}
+			subresource_range.baseMipLevel = num_mip_levels - 1;
 
 			IMAGE_BARRIER(cmd_buf,
 				.image = tex_images[i],
 				.subresourceRange = subresource_range,
 				.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
 				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 				);
-
-			wd = nwd;
-			ht = nht;
 		}
-
-		subresource_range.baseMipLevel = num_mip_levels - 1;
-
-		IMAGE_BARRIER(cmd_buf,
-			.image = tex_images[i],
-			.subresourceRange = subresource_range,
-			.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-			.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-			.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-			);
 	}
 
 	vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_graphics, true);

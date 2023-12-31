@@ -33,6 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "format/wal.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "refresh/vkpt/dds.h"
 
 #include <assert.h>
 
@@ -344,6 +345,64 @@ STB_IMAGE LOADING
 static bool supports_extended_pixel_format(void)
 {
 	return true;
+}
+
+#define ISBITMASK(header,r,g,b,a) ( header.RBitMask == r && header.GBitMask == g && header.BBitMask == b && header.ABitMask == a )
+
+int DDS_mip_size(int w, int h, int mip)
+{
+    uint32_t wi = max(1u, w >> mip);
+    uint32_t he = max(1u, h >> mip);
+    return ((wi + 3) / 4) * ((he + 3) / 4) * 16;
+}
+
+IMG_LOAD(DDS)
+{
+    DDS_HEADER* header = (DDS_HEADER*)rawdata;
+    DDS_HEADER_DXT10* header10 = rawdata + sizeof(DDS_HEADER);
+    uint32_t headers_size = sizeof(DDS_HEADER) + sizeof(DDS_HEADER_DXT10);
+
+    if(header->magic != DDS_MAGIC)
+        return Q_ERR_LIBRARY_ERROR;
+    // Require DX10 header
+    if ((header->ddspf.fourCC & DDS_FOURCC) && MAKEFOURCC('D', 'X', '1', '0') != header->ddspf.fourCC)
+		return Q_ERR_LIBRARY_ERROR;
+    if(header->size < headers_size)
+    // Verify header to validate DDS file
+    if (header->size != sizeof(DDS_HEADER) - 4)
+        return Q_ERR_LIBRARY_ERROR;
+
+    switch (header10->dxgiFormat)
+    {
+        case DXGI_FORMAT_BC7_UNORM:
+            image->pixel_format = PF_R8G8B8A8_BC7_UNORM;
+			break;
+        case DXGI_FORMAT_BC7_UNORM_SRGB:
+            image->pixel_format = PF_R8G8B8A8_BC7_UNORM;
+            break;
+        default:
+            return Q_ERR_LIBRARY_ERROR;
+    }
+
+    uint64_t img_size = 0;
+    for(int i = 0; i < header->mipMapCount; i++)
+    {
+        img_size += DDS_mip_size(header->width, header->height, i);
+	}
+
+    // Allocate enough memory for the data, because this file is freed after the function returns, so we need to copy the data
+    byte* pic_data = (byte*)IMG_AllocPixels(img_size);
+
+    memcpy(pic_data, rawdata + headers_size, img_size);
+    *pic = pic_data;
+
+    image->upload_width = image->width = header->width;
+    image->upload_height = image->height = header->height;
+    image->mip_levels = header->mipMapCount;
+    image->mip_size_cb = DDS_mip_size;
+
+    return Q_ERR_SUCCESS;
+
 }
 
 IMG_LOAD(STB)
@@ -875,7 +934,8 @@ static const struct {
     { "wal", IMG_LoadWAL },
     { "tga", IMG_LoadSTB },
     { "jpg", IMG_LoadSTB },
-    { "png", IMG_LoadSTB }
+    { "png", IMG_LoadSTB },
+    { "dds", IMG_LoadDDS }
 };
 
 static imageformat_t    img_search[IM_MAX];
@@ -1214,6 +1274,7 @@ static void r_texture_formats_changed(cvar_t *self)
             case 't': case 'T': i = IM_TGA; break;
             case 'j': case 'J': i = IM_JPG; break;
             case 'p': case 'P': i = IM_PNG; break;
+            case 'd': case 'D': i = IM_DDS; break;
             default: continue;
         }
 
@@ -1465,7 +1526,20 @@ static image_t *find_or_load_image(const char *name, size_t len,
         ret = try_load_image_candidate(image, name, len, &pic, type, flags, true, -1);
         memcpy(image->name, name, len + 1);
         image->baselen = len - 4;
+
+        if (ret < 0) // Check for compressed version
+        {
+            strcpy(image->name, "compressed/");
+            strcat(image->name, last_slash);
+            image->baselen = strlen(image->name) - 4;
+            strcpy(image->name + image->baselen, ".dds");
+            ret = _try_image_format(IM_DDS, image, -1, &pic);
+            flags = image->flags;
+            memcpy(image->name, name, len + 1);
+            image->baselen = len - 4;
+        }
     }
+
 
     // Try non-overridden image
     if (ret < 0)
@@ -1862,7 +1936,7 @@ void IMG_Init(void)
     Q_assert(!r_numImages);
 
     r_override_textures = Cvar_Get("r_override_textures", "1", CVAR_FILES);
-    r_texture_formats = Cvar_Get("r_texture_formats", "pjt", 0);
+    r_texture_formats = Cvar_Get("r_texture_formats", "pjtd", 0);
     r_texture_formats->changed = r_texture_formats_changed;
     r_texture_formats_changed(r_texture_formats);
     r_texture_overrides = Cvar_Get("r_texture_overrides", "-1", CVAR_FILES);

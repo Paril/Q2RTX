@@ -228,10 +228,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	GLOBAL_UBO_VAR_LIST_DO(ShaderFogVolume, fog_volumes[MAX_FOG_VOLUMES]) \
 	\
 	GLOBAL_UBO_VAR_LIST_DO(int,             weapon_left_handed) \
-	\
-	GLOBAL_UBO_VAR_LIST_DO(float,			sun_surface_map_scale) \
 	GLOBAL_UBO_VAR_LIST_DO(int,				sun_surface_map) \
-	GLOBAL_UBO_VAR_LIST_DO(int,		        enable_underwater_warp) \
+	GLOBAL_UBO_VAR_LIST_DO(float,			sun_surface_map_scale) \
+	GLOBAL_UBO_VAR_LIST_DO(float,			sun_cosmetic_size) \
+	\
 	GLOBAL_UBO_VAR_LIST_DO(vec3,			planet_position) \
 	GLOBAL_UBO_VAR_LIST_DO(float,           planet_radius) \
     \
@@ -242,6 +242,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     \
 	GLOBAL_UBO_VAR_LIST_DO(vec2,			cloud_overlay_direction0) \
 	GLOBAL_UBO_VAR_LIST_DO(vec2,			cloud_overlay_direction1) \
+	\
+	GLOBAL_UBO_VAR_LIST_DO(float,			cloud_overlay_brightness0) \
+	GLOBAL_UBO_VAR_LIST_DO(float,			cloud_overlay_brightness1) \
+	GLOBAL_UBO_VAR_LIST_DO(float,			planet_radius_ratio) \
+	GLOBAL_UBO_VAR_LIST_DO(int,		        enable_underwater_warp) \
 	\
 	UBO_CVAR_LIST // WARNING: Do not put any other members into global_ubo after this: the CVAR list is not vec4-aligned
 
