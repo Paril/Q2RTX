@@ -48,3 +48,7 @@ baseq2/**/*.txt
 
 # Texture compression tools
 tools/compress*
+/extern/curl
+/extern/zlib
+/extern/curl
+/extern/zlib
