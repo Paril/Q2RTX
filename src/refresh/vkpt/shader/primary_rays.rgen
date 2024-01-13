@@ -37,9 +37,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sky.h"
 
-#define PHYSICAL_SKY_CLOUD_OVERLAY_SCALE2 30 // height of the clouds in world units, the higher they are the smaller they appear
-#define OVERLAY_CLOUD_CURVATURE 0.9 // 0 = flat, 1 = full curvature
-#define OVERLAY_CLOUD_FALLOFF 0 // falloff at the horizon, 0.1 is good, 0.5 is halfway between horizon and zenith, 0 is strictly at the horizon
+#define OVERLAY_CLOUD_HEIGT 30 // height of the clouds in world units, the higher they are the smaller they appear
+#define OVERLAY_CLOUD_CURVATURE 0.7 // 0 = flat, 1 = full curvature
+#define OVERLAY_CLOUD_FALLOFF 0.1 // falloff at the horizon, 0.1 is good, 0.5 is halfway between horizon and zenith, 0 is strictly at the horizon
 
 Ray
 get_primary_ray(vec2 screen_pos)
@@ -122,7 +122,7 @@ void generate_rng_seed(ivec2 ipos, bool is_odd_checkerboard)
 vec2 intersect_plane(vec3 origin, vec3 direction)
 {
 	float curvature = sin((direction.z * M_PI) * OVERLAY_CLOUD_CURVATURE);
-	float t = (PHYSICAL_SKY_CLOUD_OVERLAY_SCALE2 * curvature - origin.y) / direction.z;
+	float t = (OVERLAY_CLOUD_HEIGT * curvature - origin.y) / direction.z;
 	vec3 intersection = origin + t * direction.xzy;
 	return intersection.xz;
 }
