@@ -1136,9 +1136,9 @@ static const lump_info_t bsp_lumps[] = {
 // QBSP
 
 #define LS(func, lump, disk_t, mem_t) \
-    { BSP_Load##func, LUMP_##lump, sizeof(disk_t), sizeof(mem_t), MAX_QBSP_MAP_##lump }
+    { BSP_Load##func, LUMP_##lump, sizeof(disk_t), q_alignof(disk_t), sizeof(mem_t), MAX_QBSP_MAP_##lump }
 #define L(func, lump, disk_t, mem_t) \
-    { BSP_QBSP_Load##func, LUMP_##lump, sizeof(disk_t), sizeof(mem_t), MAX_QBSP_MAP_##lump }
+    { BSP_QBSP_Load##func, LUMP_##lump, sizeof(disk_t), q_alignof(disk_t), sizeof(mem_t), MAX_QBSP_MAP_##lump }
 
 static const lump_info_t qbsp_lumps[] = {
     LS(Visibility,  VISIBILITY,     byte,           byte),
