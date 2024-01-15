@@ -581,7 +581,7 @@ bool KillBox(edict_t *ent)
 
     while (1) {
         tr = SV_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
-        if (!tr.ent)
+        if (!tr.ent || tr.ent == globals.entities)
             break;
 
         // nail it

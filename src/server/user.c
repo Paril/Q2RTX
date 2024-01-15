@@ -87,6 +87,10 @@ static void SV_CreateAmbients(void)
             continue;
         }
 
+        if (ent->svflags & SVF_NOCLIENT) {
+            continue;
+        }
+
         sv_client->ambients[i] = ent->s;
     }
 

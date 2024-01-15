@@ -34,8 +34,8 @@ music/
 q2config.cfg
 save
 */docs
-./basenac/
-basenac/
+/baseq2
+/basenac
 
 CMakeSettings.json
 /network
